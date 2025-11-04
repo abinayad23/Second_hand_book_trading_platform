@@ -20,7 +20,7 @@ public class UserController {
     public User register(@RequestBody User user) {
         return userService.register(user);
     }
-//Added login endpoint
+//Added login endpoint for logging into application
     @PostMapping("/login")
     public User login(@RequestBody User loginRequest) {
         return userService.login(loginRequest.getEmail(), loginRequest.getPassword());
