@@ -61,7 +61,7 @@ const Register = () => {
         phone: form.phone,
         password: form.password,
       });
-
+//it shows registeration success for valid input.
       setMessage(`✅ Registered successfully as ${response.data.name}`);
       setForm({
         name: "",
