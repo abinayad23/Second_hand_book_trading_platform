@@ -1,3 +1,5 @@
+import { useState } from "react";
+import axios from "axios";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +8,24 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { BookOpen } from "lucide-react";
 
 const Login = () => {
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [message, setMessage] = useState("");
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.id]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post("http://localhost:8082/api/users/login", form);
+      setMessage(`✅ Welcome back, ${res.data.name}`);
+      localStorage.setItem("user", JSON.stringify(res.data)); // optional store user
+    } catch (err: any) {
+      setMessage(err.response?.data?.message || "❌ Invalid email or password");
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-4">
       <Card className="w-full max-w-md shadow-large">
@@ -18,22 +38,25 @@ const Login = () => {
           <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
           <CardDescription>Login to your BookSwap account</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="you@college.edu" />
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password">Password</Label>
-              <Link to="/forgot-password" className="text-sm text-amber-500 hover:underline">
-                Forgot?
-              </Link>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" placeholder="you@college.edu" value={form.email} onChange={handleChange} />
             </div>
-            <Input id="password" type="password" />
-          </div>
-          <Button className="w-full bg-amber-500">Login</Button>
-        </CardContent>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link to="/forgot-password" className="text-sm text-amber-500 hover:underline">
+                  Forgot?
+                </Link>
+              </div>
+              <Input id="password" type="password" value={form.password} onChange={handleChange} />
+            </div>
+            <Button type="submit" className="w-full bg-amber-500"> <Link to="/">Login</Link></Button>
+            {message && <p className="text-center text-sm font-medium text-amber-600 mt-2">{message}</p>}
+          </CardContent>
+        </form>
         <CardFooter className="flex flex-col gap-4">
           <div className="text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
