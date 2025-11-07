@@ -2,6 +2,7 @@ package edu.gct.campusLink.dao;
 
 import edu.gct.campusLink.bean.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
