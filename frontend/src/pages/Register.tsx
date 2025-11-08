@@ -21,30 +21,15 @@ import {
 } from "@/components/ui/select";
 import { BookOpen } from "lucide-react";
 
-
-interface RegisterForm {
-  name: string;
-  email: string;
-  department: string;
-  phone: string;
-  location: string;
-  password: string;
-  confirmPassword: string;
-  profileImage: File | null;
-}
-
-
 const Register = () => {
   // ✅ Step 1: Form state
-   const [form, setForm] = useState<RegisterForm>({
+  const [form, setForm] = useState({
     name: "",
     email: "",
     department: "",
     phone: "",
-    location: "",
     password: "",
     confirmPassword: "",
-    profileImage: null,
   });
 
   const [message, setMessage] = useState("");
@@ -60,49 +45,36 @@ const Register = () => {
   };
 
   // ✅ Step 4: Submit form
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  if (form.password !== form.confirmPassword) {
+    if (form.password !== form.confirmPassword) {
       setMessage("Passwords do not match");
       return;
     }
 
-  const formData = new FormData();
-  formData.append("name", form.name);
-  formData.append("email", form.email);
-  formData.append("department", form.department);
-  formData.append("phone", form.phone);
-  formData.append("location", form.location);
-  formData.append("password", form.password);
-
-  if (form.profileImage) {
-    formData.append("profileImage", form.profileImage);
-  }
-
-  try {
-    const response = await axios.post("http://localhost:8082/api/users/register", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-
-    console.log("Registered successfully", response.data);
-
-    // Reset form
-    setForm({
-      name: "",
-      email: "",
-      department: "",
-      phone: "",
-      location: "",
-      password: "",
-      confirmPassword: "",
-      profileImage: null,
-    });
-  } catch (error) {
-    console.error("Registration failed:", error);
-  }
-};
-
+    try {
+      const response = await axios.post("http://localhost:8082/api/users/register", {
+        name: form.name,
+        email: form.email,
+        department: form.department,
+        phone: form.phone,
+        password: form.password,
+      });
+//it shows registeration success for valid input.
+      setMessage(`✅ Registered successfully as ${response.data.name}`);
+      setForm({
+        name: "",
+        email: "",
+        department: "",
+        phone: "",
+        password: "",
+        confirmPassword: "",
+      });
+    } catch (error: any) {
+      setMessage(error.response?.data?.message || "❌ Registration failed");
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background p-4">
@@ -172,18 +144,6 @@ const Register = () => {
               />
             </div>
 
-           {/* Location */}
-<div className="space-y-2">
-  <Label htmlFor="location">Location</Label>
-  <Input
-    id="location"
-    placeholder="Location"
-    value={form.location}
-    onChange={handleChange}
-  />
-</div>
-
-
             {/* Password */}
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
@@ -206,24 +166,8 @@ const Register = () => {
               />
             </div>
 
-            {/* Profile Image Upload */}
-<div className="space-y-2">
-  <Label htmlFor="profileImage">Profile Image</Label>
-  <Input
-    id="profileImage"
-    type="file"
-    accept="image/*"
-    onChange={(e) => {
-      if (e.target.files && e.target.files.length > 0) {
-        setForm({ ...form, profileImage: e.target.files[0] });
-      }
-    }}
-  />
-</div>
-
-
             <Button type="submit" className="w-full bg-amber-500">
-              <Link to="/login">Create an Account</Link>
+              Create Account
             </Button>
 
             {message && (

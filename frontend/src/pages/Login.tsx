@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
+import { Link,useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,7 @@ import { BookOpen } from "lucide-react";
 const Login = () => {
   const [form, setForm] = useState({ email: "", password: "" });
   const [message, setMessage] = useState("");
+  const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.id]: e.target.value });
@@ -20,7 +21,9 @@ const Login = () => {
     try {
       const res = await axios.post("http://localhost:8082/api/users/login", form);
       setMessage(`✅ Welcome back, ${res.data.name}`);
-      localStorage.setItem("user", JSON.stringify(res.data)); // optional store user
+    
+      localStorage.setItem("user", JSON.stringify(res.data));
+      navigate("/books"); // optional store user
     } catch (err: any) {
       setMessage(err.response?.data?.message || "❌ Invalid email or password");
     }
@@ -53,7 +56,7 @@ const Login = () => {
               </div>
               <Input id="password" type="password" value={form.password} onChange={handleChange} />
             </div>
-            <Button type="submit" className="w-full bg-amber-500"> <Link to="/">Login</Link></Button>
+            <Button type="submit" className="w-full bg-amber-500"> Login</Button>
             {message && <p className="text-center text-sm font-medium text-amber-600 mt-2">{message}</p>}
           </CardContent>
         </form>
