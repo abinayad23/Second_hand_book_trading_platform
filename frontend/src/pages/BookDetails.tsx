@@ -1,144 +1,221 @@
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import axios from "axios";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+import {
+  ArrowLeft,
+  IndianRupee,
+  BookOpen,
+  User,
+  Tag,
+  Mail,
+  Phone,
+  Building2,
+  Calendar,
+} from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { Heart, MapPin, MessageCircle, Star, BookOpen, Calendar, User } from "lucide-react";
+
+interface Owner {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  department?: string;
+  role?: string;
+}
+
+interface Book {
+  id: number;
+  title: string;
+  author?: string;
+  edition?: string;
+  description?: string;
+  type?: string;
+  quality?: string;
+  bookImage?: string;
+  originalPrice: number;
+  generatedPrice?: number;
+  available: boolean;
+  bookAddedTime?: string;
+  owner?: Owner;
+}
 
 const BookDetails = () => {
-  const reviews = [
-    { id: 1, user: "Alice Smith", rating: 5, comment: "Great condition! Quick response from seller.", date: "2 days ago" },
-    { id: 2, user: "Bob Johnson", rating: 4, comment: "Good book, minor wear on cover.", date: "1 week ago" },
-  ];
+  const { id } = useParams();
+  const [book, setBook] = useState<Book | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+      axios
+        .get<Book>(`http://localhost:8082/api/books/${id}`)
+        .then((res) => {
+          setBook(res.data);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Error fetching book details:", err);
+          setLoading(false);
+        });
+    }
+  }, [id]);
+
+  if (loading)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading book details...</p>
+      </div>
+    );
+
+  if (!book)
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Book not found.</p>
+      </div>
+    );
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 pt-20 pb-12 bg-gradient-subtle">
-        <div className="container max-w-6xl mx-auto px-4">
-          <div className="grid md:grid-cols-2 gap-8">
+
+      <div className="container py-10 flex-1">
+        {/* 🔙 Back Button */}
+        <Button variant="outline" className="mb-6" asChild>
+          <Link to="/books">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Books
+          </Link>
+        </Button>
+
+        {/* 📘 Book Details */}
+        <Card className="p-6 md:p-10 flex flex-col md:flex-row gap-10 shadow-md">
+          {/* Left: Book Image */}
+          <div className="flex-shrink-0 w-full md:w-1/3">
+            <img
+              src={
+                book.bookImage
+                  ? `http://localhost:8082${book.bookImage}`
+                  : "https://via.placeholder.com/400x500?text=No+Image"
+              }
+              alt={book.title}
+              className="w-full h-auto rounded-xl border"
+            />
+            {!book.available && (
+              <Badge variant="destructive" className="mt-4">
+                Not Available
+              </Badge>
+            )}
+          </div>
+
+          {/* Right: Book Info */}
+          <CardContent className="flex-1 space-y-6">
             <div>
-              <Card className="shadow-elegant overflow-hidden">
-                <div className="aspect-[3/4] bg-muted flex items-center justify-center">
-                  <BookOpen className="h-24 w-24 text-muted-foreground" />
-                </div>
-              </Card>
+              <h1 className="text-3xl font-bold mb-2">{book.title}</h1>
+              <p className="text-muted-foreground text-sm flex items-center gap-2">
+                Author :
+                 {" "+ book.author || "Unknown Author"}
+              </p>
             </div>
 
-            <div className="space-y-6">
-              <div>
-                <div className="flex items-start justify-between mb-2">
-                  <h1 className="text-4xl font-bold">Data Structures and Algorithms</h1>
-                  <Button size="icon" variant="ghost">
-                    <Heart className="h-5 w-5" />
-                  </Button>
+            {/* 💰 Price */}
+            <div className="flex items-center gap-4">
+              {book.generatedPrice === 0 ? (
+                <Badge variant="secondary" className="text-lg px-3 py-1">
+                  Free
+                </Badge>
+              ) : (
+                <div className="flex items-center gap-1 text-amber-500 font-bold text-2xl">
+                  <IndianRupee className="h-5 w-5" />
+                  {book.generatedPrice}
                 </div>
-                <p className="text-xl text-muted-foreground">by Thomas H. Cormen</p>
-                <div className="flex items-center gap-2 mt-3">
-                  <Badge>Computer Science</Badge>
-                  <Badge variant="secondary">Semester 3</Badge>
-                  <Badge variant="outline" className="bg-amber-400">For Sale</Badge>
-                </div>
-              </div>
+              )}
+              {book.originalPrice && (
+                <p className="text-sm text-muted-foreground">
+                  Estimated value :<span className="text-sm text-muted-foreground line-through">₹{book.originalPrice.toFixed(2)}</span>
+                </p>
+              )}
+            </div>
 
-              <Separator />
-
+            {/* 📖 Description */}
+            {book.description && (
               <div>
-                <div className="text-3xl font-bold text-primary mb-2">₹450</div>
-                <p className="text-sm text-muted-foreground">Original Price: ₹500 • 90% of original</p>
-              </div>
-
-              <Card className="bg-muted/50">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm"><strong>Edition:</strong> 3rd Edition</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm"><strong>ISBN:</strong> 978-0-262-03384-8</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5 text-muted-foreground" />
-                    <span className="text-sm"><strong>Meetup:</strong> Library, Main Campus</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div>
-                <h3 className="font-semibold mb-2">Description</h3>
-                <p className="text-muted-foreground">
-                  This book is in excellent condition with minimal wear. All pages are intact with no markings or highlights. 
-                  Perfect for students starting their data structures course.
+                <h3 className="font-semibold text-lg mb-1 flex items-center gap-2">
+                  <BookOpen className="h-5 w-5 text-amber-500" />
+                  Description
+                </h3>
+                <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                  {book.description}
                 </p>
               </div>
+            )}
 
-              <div className="flex gap-3">
-                <Button className="flex-1" size="lg">
-                  <MessageCircle className="mr-2 h-5 w-5" />
-                  Contact Seller
-                </Button>
-                <Button variant="outline" size="lg">Report</Button>
+            {/* 🏷️ Book Info */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Edition</p>
+                <p className="font-medium">{book.edition || "N/A"}</p>
               </div>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src="" />
-                      <AvatarFallback className="bg-primary/10 text-primary">JD</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-semibold">John Doe</h4>
-                        <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                          <span className="text-sm">4.5</span>
-                        </div>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Computer Science • 25 books listed</p>
-                    </div>
-                    <Button variant="outline" size="sm">View Profile</Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <div>
+                <p className="text-muted-foreground">Type</p>
+                <p className="font-medium capitalize">{book.type || "N/A"}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Quality</p>
+                <p className="font-medium">{book.quality || "N/A"}</p>
+              </div>
             </div>
-          </div>
 
-          <div className="mt-12">
-            <h2 className="text-2xl font-bold mb-6">Reviews & Ratings</h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              {reviews.map((review) => (
-                <Card key={review.id}>
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                            {review.user.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold text-sm">{review.user}</p>
-                          <p className="text-xs text-muted-foreground">{review.date}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {[...Array(review.rating)].map((_, i) => (
-                          <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{review.comment}</p>
-                  </CardContent>
-                </Card>
-              ))}
+            {/* 📅 Added Time */}
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4 mr-2" />
+              {book.bookAddedTime
+                ? new Date(book.bookAddedTime).toLocaleString()
+                : "Unknown time"}
             </div>
-          </div>
-        </div>
-      </main>
+
+            {/* 👤 Seller Info */}
+            {book.owner && (
+              <div className="border-t pt-4">
+                <h3 className="font-semibold text-lg mb-3">Seller Information</h3>
+                <div className="space-y-2 text-sm text-muted-foreground">
+                  <p className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span>{book.owner.name}</span>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    <span>{book.owner.email}</span>
+                  </p>
+        
+                  {book.owner.department && (
+                    <p className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4" />
+                      <span>{book.owner.department}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 🛒 CTA */}
+            <div className="pt-4">
+              <Button
+                className={`w-full md:w-auto ${
+                  book.generatedPrice === 0
+                    ? "bg-green-600 hover:bg-green-700"
+                    : "bg-amber-500 hover:bg-amber-600"
+                }`}
+              >
+                {book.generatedPrice === 0 ? "Request Donation" : "Buy Now"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Footer />
     </div>
   );

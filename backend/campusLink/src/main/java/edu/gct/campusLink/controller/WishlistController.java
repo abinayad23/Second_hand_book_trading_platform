@@ -8,6 +8,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/wishlist")
+@CrossOrigin(origins = "*")
 public class WishlistController {
 
     private final WishlistService wishlistService;

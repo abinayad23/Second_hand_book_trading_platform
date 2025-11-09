@@ -1,6 +1,7 @@
 package edu.gct.campusLink.bean;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "wishlist")
@@ -18,35 +19,50 @@ public class Wishlist {
     @JoinColumn(name = "book_id")
     private Book book;
 
-	public Long getId() {
-		return id;
-	}
+    // ✅ Track when the book was added to the wishlist
+    @Column(name = "added_time", nullable = false)
+    private LocalDateTime addedTime;
 
-	public void setId(Long id) {
-		this.id = id;
-	}
+    @PrePersist
+    public void prePersist() {
+        this.addedTime = LocalDateTime.now();
+    }
 
-	public User getUser() {
-		return user;
-	}
-
-	public void setUser(User user) {
-		this.user = user;
-	}
-
-	public Book getBook() {
-		return book;
-	}
-
-	public void setBook(Book book) {
-		this.book = book;
-	}
-
-	@Override
-	public String toString() {
-		return "Wishlist [id=" + id + ", user=" + user + ", book=" + book + "]";
-	}
-   
-    
     // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
+
+    public Book getBook() {
+        return book;
+    }
+
+    public void setBook(Book book) {
+        this.book = book;
+    }
+
+    public LocalDateTime getAddedTime() {
+        return addedTime;
+    }
+
+    public void setAddedTime(LocalDateTime addedTime) {
+        this.addedTime = addedTime;
+    }
+
+    @Override
+    public String toString() {
+        return "Wishlist [id=" + id + ", user=" + user + ", book=" + book + ", addedTime=" + addedTime + "]";
+    }
 }
