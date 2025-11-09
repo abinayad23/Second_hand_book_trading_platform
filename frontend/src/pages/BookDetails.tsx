@@ -9,11 +9,11 @@ import {
   IndianRupee,
   BookOpen,
   User,
-  Tag,
   Mail,
-  Phone,
   Building2,
   Calendar,
+  Heart,
+  HeartOff,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -22,9 +22,7 @@ interface Owner {
   id: number;
   name: string;
   email: string;
-  phone?: string;
   department?: string;
-  role?: string;
 }
 
 interface Book {
@@ -47,22 +45,73 @@ const BookDetails = () => {
   const { id } = useParams();
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
+  const [inWishlist, setInWishlist] = useState(false);
 
+  const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : null;
+
+  // ✅ Fetch book + wishlist status
   useEffect(() => {
-    if (id) {
-      axios
-        .get<Book>(`http://localhost:8082/api/books/${id}`)
-        .then((res) => {
-          setBook(res.data);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Error fetching book details:", err);
-          setLoading(false);
-        });
-    }
-  }, [id]);
+    const fetchBookDetails = async () => {
+      if (!id) return;
 
+      try {
+        // 1️⃣ Fetch book details
+        const bookRes = await axios.get<Book>(`http://localhost:8082/api/books/${id}`);
+        setBook(bookRes.data);
+
+        // 2️⃣ Check if book is already in wishlist
+        if (user) {
+          const res = await axios.get(`http://localhost:8082/api/wishlist?userId=${user.id}`);
+          const wishlistItems = res.data;
+          const exists = wishlistItems.some((item: any) => item.book.id === Number(id));
+          setInWishlist(exists);
+        }
+      } catch (error) {
+        console.error("Error fetching book or wishlist:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookDetails();
+  }, [id, user]);
+
+  // ✅ Handle wishlist add/remove
+  const handleWishlistToggle = async () => {
+    if (!user) {
+      alert("Please log in to manage wishlist.");
+      return;
+    }
+
+    if (book?.owner?.id === user.id) {
+      alert("You cannot add your own book to wishlist.");
+      return;
+    }
+
+    try {
+      if (inWishlist) {
+        // 🗑️ Remove from wishlist
+        await axios.delete(`http://localhost:8082/api/wishlist/remove`, {
+          params: { userId: user.id, bookId: id },
+        });
+        setInWishlist(false);
+      } else {
+        // ➕ Add to wishlist
+        await axios.post(
+          `http://localhost:8082/api/wishlist/add`,
+          {},
+          { params: { userId: user.id, bookId: id } }
+        );
+        setInWishlist(true);
+      }
+    } catch (err) {
+      console.error("Error updating wishlist:", err);
+      alert("Something went wrong while updating wishlist.");
+    }
+  };
+
+  // ✅ Loading & not found
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -112,106 +161,65 @@ const BookDetails = () => {
 
           {/* Right: Book Info */}
           <CardContent className="flex-1 space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">{book.title}</h1>
-              <p className="text-muted-foreground text-sm flex items-center gap-2">
-                Author :
-                 {" "+ book.author || "Unknown Author"}
-              </p>
+            <h1 className="text-3xl font-bold">{book.title}</h1>
+            <p className="text-muted-foreground">Author: {book.author || "Unknown"}</p>
+
+            <div className="flex items-center gap-2 text-amber-500 font-bold text-2xl">
+              <IndianRupee className="h-5 w-5" /> {book.generatedPrice}
             </div>
 
-            {/* 💰 Price */}
-            <div className="flex items-center gap-4">
-              {book.generatedPrice === 0 ? (
-                <Badge variant="secondary" className="text-lg px-3 py-1">
-                  Free
-                </Badge>
-              ) : (
-                <div className="flex items-center gap-1 text-amber-500 font-bold text-2xl">
-                  <IndianRupee className="h-5 w-5" />
-                  {book.generatedPrice}
-                </div>
-              )}
-              {book.originalPrice && (
-                <p className="text-sm text-muted-foreground">
-                  Estimated value :<span className="text-sm text-muted-foreground line-through">₹{book.originalPrice.toFixed(2)}</span>
-                </p>
-              )}
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Estimated value: ₹{book.originalPrice.toFixed(2)}
+            </p>
 
-            {/* 📖 Description */}
             {book.description && (
               <div>
-                <h3 className="font-semibold text-lg mb-1 flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-amber-500" />
-                  Description
+                <h3 className="font-semibold flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-amber-500" /> Description
                 </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
-                  {book.description}
-                </p>
+                <p className="text-muted-foreground">{book.description}</p>
               </div>
             )}
-
-            {/* 🏷️ Book Info */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Edition</p>
-                <p className="font-medium">{book.edition || "N/A"}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Type</p>
-                <p className="font-medium capitalize">{book.type || "N/A"}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Quality</p>
-                <p className="font-medium">{book.quality || "N/A"}</p>
-              </div>
-            </div>
-
-            {/* 📅 Added Time */}
-            <div className="flex items-center text-sm text-muted-foreground">
-              <Calendar className="h-4 w-4 mr-2" />
-              {book.bookAddedTime
-                ? new Date(book.bookAddedTime).toLocaleString()
-                : "Unknown time"}
-            </div>
 
             {/* 👤 Seller Info */}
             {book.owner && (
               <div className="border-t pt-4">
-                <h3 className="font-semibold text-lg mb-3">Seller Information</h3>
-                <div className="space-y-2 text-sm text-muted-foreground">
-                  <p className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span>{book.owner.name}</span>
+                <h3 className="font-semibold mb-3">Seller Information</h3>
+                <p>
+                  <User className="inline-block mr-2 h-4 w-4" />
+                  {book.owner.name}
+                </p>
+                <p>
+                  <Mail className="inline-block mr-2 h-4 w-4" />
+                  {book.owner.email}
+                </p>
+                {book.owner.department && (
+                  <p>
+                    <Building2 className="inline-block mr-2 h-4 w-4" />
+                    {book.owner.department}
                   </p>
-                  <p className="flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    <span>{book.owner.email}</span>
-                  </p>
-        
-                  {book.owner.department && (
-                    <p className="flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      <span>{book.owner.department}</span>
-                    </p>
-                  )}
-                </div>
+                )}
               </div>
             )}
 
-            {/* 🛒 CTA */}
-            <div className="pt-4">
+            {/* ❤️ Wishlist Button */}
+            {book.owner?.id !== user?.id && (
               <Button
-                className={`w-full md:w-auto ${
-                  book.generatedPrice === 0
-                    ? "bg-green-600 hover:bg-green-700"
-                    : "bg-amber-500 hover:bg-amber-600"
-                }`}
+                variant={inWishlist ? "destructive" : "outline"}
+                onClick={handleWishlistToggle}
+                className="flex items-center gap-2"
               >
-                {book.generatedPrice === 0 ? "Request Donation" : "Buy Now"}
+                {inWishlist ? (
+                  <>
+                    <HeartOff className="h-4 w-4" /> Remove from Wishlist
+                  </>
+                ) : (
+                  <>
+                    <Heart className="h-4 w-4" /> Add to Wishlist
+                  </>
+                )}
               </Button>
-            </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -40,8 +40,15 @@ const Books = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState("all");
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  // ✅ Fetch available books
+  // ✅ Get logged-in user from localStorage
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) setCurrentUser(JSON.parse(storedUser));
+  }, []);
+
+  // ✅ Fetch all books
   useEffect(() => {
     axios
       .get<Book[]>("http://localhost:8082/api/books")
@@ -49,7 +56,7 @@ const Books = () => {
       .catch((err) => console.error("Error fetching books:", err));
   }, []);
 
-  // ✅ Handle search
+  // ✅ Search handler
   const handleSearch = async () => {
     try {
       if (searchQuery.trim() === "") {
@@ -57,7 +64,9 @@ const Books = () => {
         setBooks(res.data);
       } else {
         const res = await axios.get<Book[]>(
-          `http://localhost:8082/api/books/search?q=${encodeURIComponent(searchQuery)}`
+          `http://localhost:8082/api/books/search?q=${encodeURIComponent(
+            searchQuery
+          )}`
         );
         setBooks(res.data);
       }
@@ -66,7 +75,25 @@ const Books = () => {
     }
   };
 
-  // ✅ Filter books by type
+  // ✅ Wishlist handler
+  const handleAddToWishlist = async (bookId: number) => {
+    if (!currentUser?.id) {
+      alert("Please log in to add books to wishlist.");
+      return;
+    }
+
+    try {
+      await axios.post("http://localhost:8082/api/wishlist/add", null, {
+        params: { userId: currentUser.id, bookId },
+      });
+      alert("Book added to wishlist!");
+    } catch (err) {
+      console.error("Error adding to wishlist:", err);
+      alert("Failed to add to wishlist.");
+    }
+  };
+
+  // ✅ Filter books
   const filteredBooks = books.filter((book) => {
     const matchesType =
       filterType === "all" ||
@@ -81,6 +108,7 @@ const Books = () => {
       <Navbar />
 
       <div className="container py-8 flex-1">
+        {/* 🔍 Search and Filter Section */}
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">Browse Books</h1>
           <p className="text-muted-foreground">
@@ -88,7 +116,6 @@ const Books = () => {
           </p>
         </div>
 
-        {/* 🔍 Search + Filters */}
         <div className="flex flex-col md:flex-row gap-4 mb-8">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -122,7 +149,7 @@ const Books = () => {
           {filteredBooks.map((book) => (
             <Card
               key={book.id}
-              className="group hover:shadow-lg transition-all overflow-hidden"
+              className="group hover:shadow-lg transition-all overflow-hidden relative"
             >
               {/* 🖼️ Book Image */}
               <div className="relative aspect-[3/4] overflow-hidden bg-muted">
@@ -135,22 +162,30 @@ const Books = () => {
                   alt={book.title}
                   className="w-full h-full object-cover"
                 />
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <Heart className="h-4 w-4" />
-                </Button>
+
+                {/* ❤️ Wishlist Button (only if not seller) */}
+                {currentUser?.id !== book.owner?.id && (
+                  <Button
+                    size="icon"
+                    variant="secondary"
+                    onClick={() => handleAddToWishlist(book.id)}
+                    className="absolute top-3 right-3 rounded-full bg-white shadow-md hover:bg-amber-100 transition-all border border-gray-200"
+                  >
+                    <Heart className="h-5 w-5 text-amber-500" />
+                  </Button>
+                )}
+
+                {/* 🏷️ Type Badge */}
                 <Badge
-                  className="absolute top-2 left-2 capitalize"
-                  variant={
-                    book.type?.toLowerCase() === "donate"
-                      ? "secondary"
-                      : book.type?.toLowerCase() === "exchange"
-                      ? "outline"
-                      : "default"
-                  }
+                  className="absolute top-3 left-3 capitalize text-white font-medium px-3 py-1 rounded-full shadow-md"
+                  style={{
+                    backgroundColor:
+                      book.type?.toLowerCase() === "donate"
+                        ? "#16a34a" // green
+                        : book.type?.toLowerCase() === "exchange"
+                        ? "#3b82f6" // blue
+                        : "#f59e0b", // amber for sale
+                  }}
                 >
                   {book.type || "Sale"}
                 </Badge>
@@ -172,14 +207,16 @@ const Books = () => {
                       FREE
                     </span>
                   ) : (
-                    <span className="text-xl font-bold text-amber-500">
-                      ₹{book.generatedPrice}
-                    </span>
-                  )}
-                  {book.originalPrice && (
-                    <span className="text-xs text-muted-foreground line-through">
-                      (Est. ₹{book.originalPrice})
-                    </span>
+                    <>
+                      <span className="text-xl font-bold text-amber-500">
+                        ₹{book.generatedPrice}
+                      </span>
+                      {book.originalPrice && (
+                        <span className="text-xs text-muted-foreground line-through">
+                          (Est. ₹{book.originalPrice})
+                        </span>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -194,7 +231,10 @@ const Books = () => {
 
               {/* 🔗 View Details */}
               <CardFooter>
-                <Button asChild className="w-full bg-amber-500">
+                <Button
+                  asChild
+                  className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+                >
                   <Link to={`/books/${book.id}`}>View Details</Link>
                 </Button>
               </CardFooter>
