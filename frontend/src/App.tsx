@@ -14,6 +14,7 @@ import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
+import Cart from "./pages/Cart";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/books" element={<Books />} />
           <Route path="/books/:id" element={<BookDetails />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/cart" element={<Cart />} />
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/upload" element={<UploadBook />} />

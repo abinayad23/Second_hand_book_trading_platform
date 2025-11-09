@@ -11,12 +11,14 @@ import {
   User,
   Mail,
   Building2,
-  Calendar,
   Heart,
   HeartOff,
+  ShoppingCart,
+  Trash2,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { toast } from "sonner";
 
 interface Owner {
   id: number;
@@ -46,72 +48,106 @@ const BookDetails = () => {
   const [book, setBook] = useState<Book | null>(null);
   const [loading, setLoading] = useState(true);
   const [inWishlist, setInWishlist] = useState(false);
+  const [inCart, setInCart] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(false);
 
   const storedUser = localStorage.getItem("user");
   const user = storedUser ? JSON.parse(storedUser) : null;
 
-  // ✅ Fetch book + wishlist status
   useEffect(() => {
-    const fetchBookDetails = async () => {
-      if (!id) return;
+    if (id) fetchBookData();
+  }, [id, user?.id]);
 
-      try {
-        // 1️⃣ Fetch book details
-        const bookRes = await axios.get<Book>(`http://localhost:8082/api/books/${id}`);
-        setBook(bookRes.data);
+  // 🔹 Fetch Book + Wishlist + Cart Status
+  const fetchBookData = async () => {
+    try {
+      setLoading(true);
 
-        // 2️⃣ Check if book is already in wishlist
-        if (user) {
-          const res = await axios.get(`http://localhost:8082/api/wishlist?userId=${user.id}`);
-          const wishlistItems = res.data;
-          const exists = wishlistItems.some((item: any) => item.book.id === Number(id));
-          setInWishlist(exists);
-        }
-      } catch (error) {
-        console.error("Error fetching book or wishlist:", error);
-      } finally {
-        setLoading(false);
+      const bookRes = await axios.get<Book>(`http://localhost:8082/api/books/${id}`);
+      setBook(bookRes.data);
+
+      if (user?.id) {
+        // Wishlist check
+        const wishlistRes = await axios.get(`http://localhost:8082/api/wishlist`, {
+          params: { userId: user.id },
+        });
+        setInWishlist(wishlistRes.data.some((w: any) => w.book.id === Number(id)));
+
+        // Cart check
+        const cartRes = await axios.get(`http://localhost:8082/api/cart`, {
+          params: { userId: user.id },
+        });
+        setInCart(cartRes.data.some((c: any) => c.book.id === Number(id)));
       }
-    };
+    } catch (err) {
+      console.error("Error fetching book or status:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchBookDetails();
-  }, [id, user]);
-
-  // ✅ Handle wishlist add/remove
+  // ❤️ Toggle Wishlist
   const handleWishlistToggle = async () => {
-    if (!user) {
-      alert("Please log in to manage wishlist.");
-      return;
-    }
-
-    if (book?.owner?.id === user.id) {
-      alert("You cannot add your own book to wishlist.");
-      return;
-    }
+    if (!user) return toast.error("Please log in to manage wishlist.");
+    if (book?.owner?.id === user.id)
+      return toast.error("You cannot add your own book to wishlist.");
 
     try {
       if (inWishlist) {
-        // 🗑️ Remove from wishlist
         await axios.delete(`http://localhost:8082/api/wishlist/remove`, {
           params: { userId: user.id, bookId: id },
         });
+        toast.success("Removed from wishlist!");
         setInWishlist(false);
       } else {
-        // ➕ Add to wishlist
         await axios.post(
           `http://localhost:8082/api/wishlist/add`,
           {},
           { params: { userId: user.id, bookId: id } }
         );
+        toast.success("Added to wishlist!");
         setInWishlist(true);
       }
     } catch (err) {
-      console.error("Error updating wishlist:", err);
-      alert("Something went wrong while updating wishlist.");
+      console.error(err);
+      toast.error("Error updating wishlist!");
     }
   };
 
-  // ✅ Loading & not found
+  // 🛒 Toggle Cart (Add/Remove)
+  const handleCartToggle = async () => {
+    if (!user) return toast.error("Please log in to manage cart.");
+    if (book?.owner?.id === user.id)
+      return toast.error("You cannot buy your own book.");
+
+    setLoadingAction(true);
+    try {
+      if (inCart) {
+        await axios.delete(`http://localhost:8082/api/cart/remove`, {
+          params: { userId: user.id, bookId: id },
+        });
+        toast.success("Removed from cart!");
+        setInCart(false);
+      } else {
+        await axios.post(`http://localhost:8082/api/cart/add`, null, {
+          params: { userId: user.id, bookId: id },
+        });
+        toast.success("Book added to cart!");
+        setInCart(true);
+      }
+    } catch (err: any) {
+      if (err.response?.data?.message?.includes("exists")) {
+        toast.error("Book already in cart!");
+        setInCart(true);
+      } else {
+        console.error(err);
+        toast.error("Error updating cart!");
+      }
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -165,12 +201,20 @@ const BookDetails = () => {
             <p className="text-muted-foreground">Author: {book.author || "Unknown"}</p>
 
             <div className="flex items-center gap-2 text-amber-500 font-bold text-2xl">
-              <IndianRupee className="h-5 w-5" /> {book.generatedPrice}
+              {book.generatedPrice === 0 ? (
+                <span className="text-green-600 text-2xl">FREE</span>
+              ) : (
+                <>
+                  <IndianRupee className="h-5 w-5" /> {book.generatedPrice}
+                </>
+              )}
             </div>
 
-            <p className="text-sm text-muted-foreground">
-              Estimated value: ₹{book.originalPrice.toFixed(2)}
-            </p>
+            {book.generatedPrice !== 0 && (
+              <p className="text-sm text-muted-foreground">
+                Estimated value: ₹{book.originalPrice.toFixed(2)}
+              </p>
+            )}
 
             {book.description && (
               <div>
@@ -202,23 +246,44 @@ const BookDetails = () => {
               </div>
             )}
 
-            {/* ❤️ Wishlist Button */}
+            {/* ❤️ Wishlist & Cart Buttons */}
             {book.owner?.id !== user?.id && (
-              <Button
-                variant={inWishlist ? "destructive" : "outline"}
-                onClick={handleWishlistToggle}
-                className="flex items-center gap-2"
-              >
-                {inWishlist ? (
-                  <>
-                    <HeartOff className="h-4 w-4" /> Remove from Wishlist
-                  </>
-                ) : (
-                  <>
-                    <Heart className="h-4 w-4" /> Add to Wishlist
-                  </>
-                )}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button
+                  variant={inWishlist ? "destructive" : "outline"}
+                  onClick={handleWishlistToggle}
+                  className="flex items-center gap-2"
+                >
+                  {inWishlist ? (
+                    <>
+                      <HeartOff className="h-4 w-4" /> Remove from Wishlist
+                    </>
+                  ) : (
+                    <>
+                      <Heart className="h-4 w-4" /> Add to Wishlist
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  variant={inCart ? "secondary" : "default"}
+                  onClick={handleCartToggle}
+                  className="flex items-center gap-2"
+                  disabled={loadingAction}
+                >
+                  {loadingAction ? (
+                    "Processing..."
+                  ) : inCart ? (
+                    <>
+                      <Trash2 className="h-4 w-4" /> Remove from Cart
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="h-4 w-4" /> Add to Cart
+                    </>
+                  )}
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
