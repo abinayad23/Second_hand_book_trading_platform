@@ -2,42 +2,43 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Download, BookOpen, Package, Truck } from "lucide-react";
 import axios from "axios";
 
-interface Book {
+interface BookDTO {
   id: number;
   title: string;
-  author?: string;
-  generatedPrice?: number;
-  type: string; // 👈 show type per book
+  type: string;
+  generatedPrice: number;
+  bookImage?: string; // ✅ image path from backend
 }
 
-interface Order {
+interface OrderDTO {
   id: number;
-  books: Book[];
-  totalPrice?: number;
+  totalPrice: number;
   orderTime: string;
   status: string;
-  buyer?: { id: number; name: string };
-  seller?: { id: number; name: string };
+  buyerName?: string;
+  sellerName?: string;
+  books: BookDTO[];
 }
 
 const Orders = () => {
-  const [buyerOrders, setBuyerOrders] = useState<Order[]>([]);
-  const [sellerOrders, setSellerOrders] = useState<Order[]>([]);
-  const [filter, setFilter] = useState("all");
+  const [buyerOrders, setBuyerOrders] = useState<OrderDTO[]>([]);
+  const [sellerOrders, setSellerOrders] = useState<OrderDTO[]>([]);
 
-  const userId = Number(localStorage.getItem("userId"));
+  // ✅ Parse full user object from localStorage
+  const userJson = localStorage.getItem("user");
+  const user = userJson ? JSON.parse(userJson) : null;
+  const userId = user?.id;
 
   const fetchOrders = async () => {
     try {
       const [buyerRes, sellerRes] = await Promise.all([
-        axios.get(`/api/orders/buyer/${userId}`),
-        axios.get(`/api/orders/seller/${userId}`),
+        axios.get(`http://localhost:8082/api/orders/buyer/${userId}`),
+        axios.get(`http://localhost:8082/api/orders/seller/${userId}`),
       ]);
       setBuyerOrders(buyerRes.data);
       setSellerOrders(sellerRes.data);
@@ -48,7 +49,7 @@ const Orders = () => {
 
   const markDelivered = async (orderId: number) => {
     try {
-      await axios.put(`/api/orders/${orderId}/deliver`);
+      await axios.put(`http://localhost:8082/api/orders/${orderId}/deliver`);
       fetchOrders();
     } catch (err) {
       console.error("Failed to mark delivered:", err);
@@ -56,21 +57,41 @@ const Orders = () => {
   };
 
   useEffect(() => {
-    if (userId) fetchOrders();
+    if (!userId) {
+      console.error("No valid userId found in localStorage");
+      return;
+    }
+    fetchOrders();
   }, [userId]);
 
-  // Merge buyer + seller orders for "all"
-  const allOrders = [...buyerOrders, ...sellerOrders];
-
-  // Filter logic
-  const filteredOrders =
-    filter === "all"
-      ? allOrders
-      : filter === "bought"
-      ? buyerOrders
-      : filter === "sold"
-      ? sellerOrders
-      : [];
+  const renderBooks = (books: BookDTO[]) => (
+    <ul className="mt-2 space-y-2">
+      {books.map((book) => (
+        <li key={book.id} className="flex items-center gap-3 text-sm">
+          {book.bookImage ? (
+            <img
+              src={`http://localhost:8082${book.bookImage}`} // ✅ prepend backend host
+              alt={book.title}
+              className="w-12 h-16 object-cover rounded border"
+            />
+          ) : (
+            <div className="w-12 h-16 bg-muted rounded flex items-center justify-center">
+              <BookOpen className="h-5 w-5 text-muted-foreground" />
+            </div>
+          )}
+          <div>
+            <span className="font-medium">{book.title}</span>{" "}
+            <Badge variant="default">{book.type}</Badge>
+            {book.generatedPrice !== undefined && (
+              <p className="text-xs text-muted-foreground">
+                ₹{book.generatedPrice}
+              </p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -87,92 +108,85 @@ const Orders = () => {
             <Package className="h-12 w-12 text-primary" />
           </div>
 
-          <Tabs
-            defaultValue="all"
-            className="space-y-6"
-            onValueChange={(val) => setFilter(val)}
-          >
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="bought">Bought</TabsTrigger>
-              <TabsTrigger value="sold">Sold</TabsTrigger>
-              <TabsTrigger value="exchanged">Exchanged</TabsTrigger>
-              <TabsTrigger value="donated">Donated</TabsTrigger>
-            </TabsList>
+          {/* Bought Orders */}
+          <h2 className="text-2xl font-semibold mb-4">Bought Orders</h2>
+          {buyerOrders.length === 0 ? (
+            <p className="text-gray-500 mb-8">No bought orders found.</p>
+          ) : (
+            buyerOrders.map((order) => (
+              <Card key={order.id} className="shadow-elegant mb-6">
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Badge variant="secondary">{order.status}</Badge>
+                      <p className="text-sm text-muted-foreground">
+                        Order Date:{" "}
+                        {new Date(order.orderTime).toLocaleDateString()}
+                      </p>
+                      {order.sellerName && (
+                        <p className="text-sm text-muted-foreground">
+                          Seller: {order.sellerName}
+                        </p>
+                      )}
+                      {renderBooks(order.books)}
+                    </div>
+                    <div className="flex flex-col items-end gap-3">
+                      <p className="text-2xl font-bold text-primary">
+                        ₹{order.totalPrice}
+                      </p>
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Receipt
+                      </Button>
+                      {order.status === "PENDING_DELIVERY" && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => markDelivered(order.id)}
+                        >
+                          <Truck className="h-4 w-4 mr-2" />
+                          Mark as Delivered
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
 
-            <TabsContent value={filter} className="space-y-4">
-              {filteredOrders.length === 0 ? (
-                <p className="text-center text-gray-500 mt-10">
-                  No {filter === "all" ? "" : filter} orders found.
-                </p>
-              ) : (
-                filteredOrders.map((order) => (
-                  <Card key={order.id} className="shadow-elegant">
-                    <CardContent className="p-6">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex gap-4 flex-1">
-                          <div className="w-16 h-20 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                            <BookOpen className="h-6 w-6 text-muted-foreground" />
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <Badge variant="secondary">{order.status}</Badge>
-                            </div>
-                            <div className="text-sm text-muted-foreground space-y-1">
-                              <p>
-                                Order Date:{" "}
-                                {new Date(order.orderTime).toLocaleDateString()}
-                              </p>
-                              {order.seller && (
-                                <p>Seller: {order.seller.name}</p>
-                              )}
-                              {order.buyer && <p>Buyer: {order.buyer.name}</p>}
-                            </div>
-                            {/* List books with type */}
-                            <ul className="mt-2 space-y-1">
-                              {order.books.map((book) => (
-                                <li key={book.id} className="text-sm">
-                                  <span className="font-medium">
-                                    {book.title}
-                                  </span>{" "}
-                                  <Badge variant="default">{book.type}</Badge>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                        <div className="flex flex-col items-end gap-3">
-                          {order.totalPrice && (
-                            <p className="text-2xl font-bold text-primary">
-                              ₹{order.totalPrice}
-                            </p>
-                          )}
-                          {filter === "bought" && (
-                            <>
-                              <Button variant="outline" size="sm">
-                                <Download className="h-4 w-4 mr-2" />
-                                Download Receipt
-                              </Button>
-                              {order.status === "PENDING_DELIVERY" && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => markDelivered(order.id)}
-                                >
-                                  <Truck className="h-4 w-4 mr-2" />
-                                  Mark as Delivered
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </TabsContent>
-          </Tabs>
+          {/* Sold Orders */}
+          <h2 className="text-2xl font-semibold mb-4 mt-10">Sold Orders</h2>
+          {sellerOrders.length === 0 ? (
+            <p className="text-gray-500">No sold orders found.</p>
+          ) : (
+            sellerOrders.map((order) => (
+              <Card key={order.id} className="shadow-elegant mb-6">
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <Badge variant="secondary">{order.status}</Badge>
+                      <p className="text-sm text-muted-foreground">
+                        Order Date:{" "}
+                        {new Date(order.orderTime).toLocaleDateString()}
+                      </p>
+                      {order.buyerName && (
+                        <p className="text-sm text-muted-foreground">
+                          Buyer: {order.buyerName}
+                        </p>
+                      )}
+                      {renderBooks(order.books)}
+                    </div>
+                    <div className="flex flex-col items-end gap-3">
+                      <p className="text-2xl font-bold text-primary">
+                        ₹{order.totalPrice}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
       </main>
       <Footer />
