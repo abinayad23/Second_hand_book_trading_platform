@@ -6,12 +6,21 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Mail, MapPin, Star, BookOpen } from "lucide-react";
+import { Mail, MapPin, Star, BookOpen, Plus } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+
+const typeColors: Record<string, string> = {
+  Sell: "bg-green-200 text-green-800",
+  Donate: "bg-blue-200 text-blue-800",
+  Exchange: "bg-purple-200 text-purple-800",
+  Rent: "bg-yellow-200 text-yellow-800",
+  Other: "bg-gray-200 text-gray-800",
+};
+
+const capitalizeFirstLetter = (str: string) => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
 const Profile = () => {
   const [user, setUser] = useState<any>(null);
@@ -26,17 +35,12 @@ const Profile = () => {
       const userObj = JSON.parse(storedUser);
       setUser(userObj);
 
-      // Fetch user's books dynamically
       axios
         .get(`/api/books/user/${userObj.id}`)
         .then((res) => {
-          if (Array.isArray(res.data)) {
-            setUserBooks(res.data);
-          } else if (Array.isArray(res.data.books)) {
-            setUserBooks(res.data.books);
-          } else {
-            setUserBooks([]);
-          }
+          if (Array.isArray(res.data)) setUserBooks(res.data);
+          else if (Array.isArray(res.data?.books)) setUserBooks(res.data.books);
+          else setUserBooks([]);
           setLoading(false);
         })
         .catch((err) => {
@@ -44,20 +48,16 @@ const Profile = () => {
           setUserBooks([]);
           setLoading(false);
         });
-    } else {
-      setLoading(false);
-    }
+    } else setLoading(false);
   }, []);
 
   if (loading) return <div className="text-center mt-20">Loading...</div>;
   if (!user) return <div className="text-center mt-20">User not logged in.</div>;
 
-  // Update user state while editing
   const handleChange = (field: string, value: string) => {
     setUser({ ...user, [field]: value });
   };
 
-  // Save updated profile to backend
   const handleSave = () => {
     setSaving(true);
     axios
@@ -78,160 +78,144 @@ const Profile = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 pt-20 pb-12 bg-gradient-subtle">
+
+      <main className="flex-1 pt-20 pb-12 bg-gray-50">
         <div className="container max-w-6xl mx-auto px-4">
-          <Card className="shadow-elegant">
-            <CardHeader className="pb-4 flex flex-col md:flex-row gap-6 items-start md:items-center">
-              <Avatar className="h-24 w-24">
-                <AvatarImage src={user.profileImagePath || ""} />
-                <AvatarFallback>
-                  {user.name?.split(" ").map((n: string) => n[0]).join("")}
-                </AvatarFallback>
-              </Avatar>
+          <Card className="shadow-lg rounded-xl">
+            {/* Header: avatar + info left, save button right */}
+            <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-6 p-6">
+              <div className="flex items-center gap-6">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage src={user.profileImagePath || ""} />
+                  <AvatarFallback>
+                    {user.name?.split(" ").map((n: string) => n[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
 
-              <div className="flex-1">
-                <CardTitle className="text-3xl">{user.name}</CardTitle>
-                <CardDescription className="flex items-center gap-2 mt-2">
-                  <Mail className="h-4 w-4" />
-                  {user.email}
-                </CardDescription>
+                <div className="space-y-2">
+                  <CardTitle className="text-3xl font-semibold">{user.name}</CardTitle>
+                  <CardDescription className="flex items-center gap-2 text-gray-600">
+                    <Mail className="h-4 w-4 text-blue-600" />
+                    {user.email}
+                  </CardDescription>
 
-                <div className="flex items-center gap-4 mt-3">
-                  <Badge variant="secondary">{user.department || "No department"}</Badge>
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                    <span className="text-sm font-medium">{user.acceptRate || 0}</span>
+                  <div className="flex items-center gap-4 mt-2">
+                    <Badge variant="secondary">{user.department || "No department"}</Badge>
+                    <div className="flex items-center gap-1">
+                      <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                      <span className="text-sm font-medium">{user.acceptRate || 0}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <Button onClick={handleSave} disabled={saving}>
+              <Button onClick={handleSave} disabled={saving} className="min-w-[150px] bg-amber-400 hover:bg-amber-500 text-white">
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
             </CardHeader>
 
+            {/* Content: tabs */}
             <CardContent>
-              <Tabs defaultValue="info" className="mt-4">
+              <Tabs defaultValue="info" className="mt-2">
                 <TabsList className="grid w-full grid-cols-1 md:grid-cols-3">
                   <TabsTrigger value="info">Profile Info</TabsTrigger>
                   <TabsTrigger value="books">My Books</TabsTrigger>
                   <TabsTrigger value="stats">Statistics</TabsTrigger>
                 </TabsList>
 
-                <Button
-  className="mb-4 bg-amber-400 text-white hover:bg-amber-500 flex items-center gap-2"
-  onClick={() => navigate("/upload")}
->
-  <Plus className="h-4 w-4" /> List a Book
-</Button>
-
-                {/* ---------- Profile Info Tab ---------- */}
-                <TabsContent value="info" className="space-y-4 mt-6">
-                  <div className="grid md:grid-cols-2 gap-4">
+                {/* Profile Info */}
+                <TabsContent value="info" className="space-y-6 mt-6">
+                  <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label>Full Name</Label>
-                      <Input
-                        value={user.name}
-                        onChange={(e) => handleChange("name", e.target.value)}
-                      />
+                      <Input value={user.name || ""} onChange={(e) => handleChange("name", e.target.value)} />
                     </div>
-
                     <div className="space-y-2">
                       <Label>Email</Label>
-                      <Input value={user.email} disabled />
+                      <Input value={user.email || ""} disabled />
                     </div>
-
                     <div className="space-y-2">
                       <Label>Department</Label>
-                      <Input
-                        value={user.department || ""}
-                        onChange={(e) => handleChange("department", e.target.value)}
-                      />
+                      <Input value={user.department || ""} onChange={(e) => handleChange("department", e.target.value)} />
                     </div>
-
                     <div className="space-y-2">
                       <Label>Phone Number</Label>
-                      <Input
-                        value={user.phone || ""}
-                        onChange={(e) => handleChange("phone", e.target.value)}
-                      />
+                      <Input value={user.phone || ""} onChange={(e) => handleChange("phone", e.target.value)} />
                     </div>
-
                     <div className="space-y-2 md:col-span-2">
                       <Label>Campus Location</Label>
-                      <div className="flex gap-2">
-                        <MapPin className="h-5 w-5 text-muted-foreground mt-2" />
-                        <Input
-                          value={user.location || ""}
-                          onChange={(e) => handleChange("location", e.target.value)}
-                        />
+                      <div className="flex gap-2 items-center">
+                        <MapPin className="h-5 w-5 text-green-600" />
+                        <Input value={user.location || ""} onChange={(e) => handleChange("location", e.target.value)} />
                       </div>
                     </div>
                   </div>
                 </TabsContent>
 
-                {/* ---------- Books Tab ---------- */}
-                <TabsContent value="books" className="mt-6">
-                  <div className="space-y-3">
-                    {Array.isArray(userBooks) && userBooks.length > 0 ? (
-                      userBooks.map((book) => (
-                        <Card key={book.id}>
-                          <CardContent className="flex items-center justify-between p-4">
-                            <div className="flex items-center gap-3">
-                              <BookOpen className="h-8 w-8 text-primary" />
-                              <div>
-                                <h4 className="font-semibold">{book.title}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  Type: {book.type} {book.price && `• ₹${book.price}`}
-                                </p>
-                              </div>
-                            </div>
-                            <Badge variant={book.status === "active" ? "default" : "secondary"}>
-                              {book.status}
-                            </Badge>
-                          </CardContent>
-                        </Card>
-                      ))
-                    ) : (
-                      <p>No books available.</p>
-                    )}
+                {/* My Books */}
+                <TabsContent value="books" className="mt-6 space-y-4">
+                  <div className="flex justify-end mb-2">
+                    <Button
+                      className="bg-amber-400 text-white hover:bg-amber-500 flex items-center gap-2"
+                      onClick={() => navigate("/upload")}
+                    >
+                      <Plus className="h-4 w-4 text-white" /> List a Book
+                    </Button>
                   </div>
+
+                  {userBooks.length > 0 ? (
+                    <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-4">
+                      {userBooks.map((book) => {
+                        const type = capitalizeFirstLetter(book.type);
+                        const badgeColor = typeColors[type] || typeColors["Other"];
+                        return (
+                          <Card key={book.id} className="p-4 shadow-sm hover:shadow-md transition-all rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <BookOpen className={`h-8 w-8 ${typeColors[type]?.split(" ")[1] || "text-gray-700"}`} />
+                                <div className="space-y-1">
+                                  <h4 className="font-semibold leading-tight">{book.title}</h4>
+                                  <p className="text-sm text-gray-600">
+                                    Type: <span className={`px-2 py-1 rounded ${badgeColor}`}>{type}</span>
+                                    {book.price && ` • ₹${book.price}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge variant={book.status === "active" ? "default" : "secondary"} className="capitalize">
+                                {book.status}
+                              </Badge>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500">No books available.</p>
+                  )}
                 </TabsContent>
 
-                {/* ---------- Statistics Tab ---------- */}
+                {/* Statistics */}
                 <TabsContent value="stats" className="mt-6">
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <Card>
-                      <CardContent className="p-6 text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {Array.isArray(userBooks)
-                            ? userBooks.filter((b) => b.type === "sell").length
-                            : 0}
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">Books Sold</p>
-                      </CardContent>
+                  <div className="grid md:grid-cols-3 gap-6">
+                    <Card className="text-center p-6 shadow-sm rounded-lg">
+                      <div className="text-3xl font-bold text-green-600">
+                        {userBooks.filter((b) => b.type === "sell").length}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">Books Sold</p>
                     </Card>
 
-                    <Card>
-                      <CardContent className="p-6 text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {Array.isArray(userBooks)
-                            ? userBooks.filter((b) => b.type === "exchange").length
-                            : 0}
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">Books Exchanged</p>
-                      </CardContent>
+                    <Card className="text-center p-6 shadow-sm rounded-lg">
+                      <div className="text-3xl font-bold text-purple-600">
+                        {userBooks.filter((b) => b.type === "exchange").length}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">Books Exchanged</p>
                     </Card>
 
-                    <Card>
-                      <CardContent className="p-6 text-center">
-                        <div className="text-3xl font-bold text-primary">
-                          {Array.isArray(userBooks)
-                            ? userBooks.filter((b) => b.type === "donate").length
-                            : 0}
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">Books Donated</p>
-                      </CardContent>
+                    <Card className="text-center p-6 shadow-sm rounded-lg">
+                      <div className="text-3xl font-bold text-blue-600">
+                        {userBooks.filter((b) => b.type === "donate").length}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">Books Donated</p>
                     </Card>
                   </div>
                 </TabsContent>
@@ -240,6 +224,7 @@ const Profile = () => {
           </Card>
         </div>
       </main>
+
       <Footer />
     </div>
   );

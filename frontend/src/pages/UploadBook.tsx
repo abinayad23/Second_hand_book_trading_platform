@@ -11,6 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { BookOpen, Upload } from "lucide-react";
 
+const typeStyles: Record<string, string> = {
+  sale: "bg-green-100 text-green-700 border-green-300",
+  exchange: "bg-purple-100 text-purple-700 border-purple-300",
+  donate: "bg-blue-100 text-blue-700 border-blue-300",
+};
+
 const UploadBook = () => {
   const navigate = useNavigate();
   const storedUser = localStorage.getItem("user");
@@ -31,12 +37,17 @@ const UploadBook = () => {
 
   if (!user) return <div className="text-center mt-20">Please login to list a book.</div>;
 
-  // Auto-calculate generated price based on quality
   const calculateGeneratedPrice = (price: number, quality: string) => {
-    if (quality === "Excellent") return price * 0.8;
-    if (quality === "Good") return price * 0.6;
-    if (quality === "Average") return price * 0.4;
-    return price * 0.3;
+    switch (quality) {
+      case "Excellent":
+        return price * 0.8;
+      case "Good":
+        return price * 0.6;
+      case "Average":
+        return price * 0.4;
+      default:
+        return price * 0.3;
+    }
   };
 
   const handleGeneratedPrice = (price: number, q: string) => {
@@ -83,19 +94,21 @@ const UploadBook = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-      <main className="flex-1 pt-20 pb-12 bg-gradient-subtle">
+      <main className="flex-1 pt-20 pb-12 bg-gray-50">
         <div className="container max-w-3xl mx-auto px-4">
+          {/* Header */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <div className="rounded-full bg-primary/10 p-4">
-                <BookOpen className="h-10 w-10 text-primary" />
+              <div className="rounded-full bg-amber-100 p-4">
+                <BookOpen className="h-10 w-10 text-amber-600" />
               </div>
             </div>
-            <h1 className="text-4xl font-bold mb-2">List Your Book</h1>
-            <p className="text-muted-foreground">Sell, exchange, or donate your book</p>
+            <h1 className="text-4xl font-bold mb-2 text-gray-800">List Your Book</h1>
+            <p className="text-gray-600">Sell, exchange, or donate your book</p>
           </div>
 
-          <Card className="shadow-elegant">
+          {/* Form Card */}
+          <Card className="shadow-lg border border-gray-200 rounded-xl transition-shadow hover:shadow-xl">
             <CardHeader>
               <CardTitle>Book Information</CardTitle>
               <CardDescription>Enter complete details of your book</CardDescription>
@@ -106,11 +119,21 @@ const UploadBook = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Book Title *</Label>
-                  <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Book title" />
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Book title"
+                    className="border-gray-300 focus:border-amber-400 focus:ring-amber-200"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Author *</Label>
-                  <Input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Author name" />
+                  <Input
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    placeholder="Author name"
+                    className="border-gray-300 focus:border-amber-400 focus:ring-amber-200"
+                  />
                 </div>
               </div>
 
@@ -118,12 +141,17 @@ const UploadBook = () => {
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Edition</Label>
-                  <Input value={edition} onChange={(e) => setEdition(e.target.value)} placeholder="e.g. 2nd Edition" />
+                  <Input
+                    value={edition}
+                    onChange={(e) => setEdition(e.target.value)}
+                    placeholder="e.g. 2nd Edition"
+                    className="border-gray-300 focus:border-amber-400 focus:ring-amber-200"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Quality</Label>
                   <select
-                    className="border rounded-lg p-2 w-full"
+                    className="border-gray-300 rounded-lg p-2 w-full focus:ring-amber-200 focus:border-amber-400 bg-white text-gray-800 transition-colors"
                     value={quality}
                     onChange={(e) => {
                       setQuality(e.target.value);
@@ -151,6 +179,7 @@ const UploadBook = () => {
                       handleGeneratedPrice(val, quality);
                     }}
                     placeholder="₹ Original price"
+                    className="border-gray-300 focus:border-amber-400 focus:ring-amber-200"
                   />
                 </div>
                 <div className="space-y-2">
@@ -159,8 +188,8 @@ const UploadBook = () => {
                     type="number"
                     value={generatedPrice}
                     readOnly
-                    className="bg-gray-100"
                     placeholder="Auto calculated"
+                    className="bg-gray-100 border-gray-200"
                   />
                 </div>
               </div>
@@ -172,51 +201,49 @@ const UploadBook = () => {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Brief description of your book..."
+                  className="border-gray-300 focus:border-amber-400 focus:ring-amber-200"
                 />
               </div>
 
-              {/* Type: sale / exchange / donate */}
+              {/* Type */}
               <div className="space-y-2">
                 <Label>Type *</Label>
                 <RadioGroup value={type} onValueChange={setType} className="flex gap-6">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="sale" id="sale" />
-                    <Label htmlFor="sale">Sale</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="exchange" id="exchange" />
-                    <Label htmlFor="exchange">Exchange</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="donate" id="donate" />
-                    <Label htmlFor="donate">Donate</Label>
-                  </div>
+                  {["sale", "exchange", "donate"].map((t) => (
+                    <div
+                      key={t}
+                      className={`flex items-center space-x-2 px-3 py-1 border rounded-full text-sm font-medium ${typeStyles[t]}`}
+                    >
+                      <RadioGroupItem value={t} id={t} />
+                      <Label htmlFor={t} className="cursor-pointer">
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </Label>
+                    </div>
+                  ))}
                 </RadioGroup>
               </div>
 
-              {/* Upload Image */}
+              {/* Image Upload */}
               <div className="space-y-2">
                 <Label>Book Image</Label>
                 <div
-                  className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer"
+                  className="border-2 border-gray-300 border-dashed rounded-lg p-8 text-center hover:border-amber-400 transition-colors cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
+                  <Upload className="h-8 w-8 mx-auto mb-2 text-amber-600" />
+                  <p className="text-sm text-gray-500">Click to upload or drag and drop</p>
                   {imageFile && <p className="text-green-600 mt-2">{imageFile.name} selected</p>}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    ref={fileInputRef}
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
+                  <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleFileChange} />
                 </div>
               </div>
 
               {/* Submit */}
               <div className="flex gap-3 pt-4">
-                <Button className="flex-1" onClick={handleSubmit} disabled={loading}>
+                <Button
+                  className="flex-1 bg-amber-400 hover:bg-amber-500 text-white transition-colors"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                >
                   {loading ? "Uploading..." : "Upload Book"}
                 </Button>
                 <Button variant="outline" onClick={() => navigate("/books")}>

@@ -45,7 +45,7 @@ const Books = () => {
   const [cartIds, setCartIds] = useState<number[]>([]);
   const [loadingIds, setLoadingIds] = useState<{ [id: number]: boolean }>(
     {}
-  ); // per-item loading flag
+  );
 
   // get logged-in user
   useEffect(() => {
@@ -196,77 +196,58 @@ const Books = () => {
   });
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
 
-      <div className="container py-8 flex-1">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Browse Books</h1>
-          <p className="text-muted-foreground">
-            Explore books available for sale, exchange, or donation
+      <div className="container max-w-7xl mx-auto px-4 py-10 flex-1">
+        {/* Centered Title */}
+        <div className="mb-10 text-center">
+          <h1 className="text-4xl font-extrabold text-gray-900">Browse Books</h1>
+          <p className="mt-2 text-gray-600 max-w-2xl mx-auto">
+            Explore books available for sale, exchange, or donation — find the best deals from students near you.
           </p>
         </div>
 
-{/* Search + Filter */}
-<div className="flex flex-col md:flex-row gap-4 mb-8">
-  {/* 🔍 Search Bar */}
-  <div className="relative flex-1">
-    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-    <Input
-      placeholder="Search by title or author..."
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-      className="pl-10 border border-gray-300 bg-white text-gray-900 placeholder-gray-500 
-                 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 rounded-lg transition"
-    />
-  </div>
+        {/* Search + Filter */}
+        <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
+          {/* Search Bar */}
+          <div className="relative w-full md:flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Input
+              placeholder="Search by title or author..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              className="pl-12 h-12 bg-white border border-gray-300 rounded-lg shadow-sm"
+            />
+          </div>
 
-  {/* 🔘 Search Button */}
-  <Button
-    onClick={handleSearch}
-    className="bg-amber-500 text-white hover:bg-amber-600 rounded-lg"
-  >
-    Search
-  </Button>
+          {/* Search Button */}
+          <Button
+            onClick={handleSearch}
+            className="h-12 px-6 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow"
+          >
+            Search
+          </Button>
 
-  {/* 🧩 Filter Dropdown */}
-  <Select value={filterType} onValueChange={setFilterType}>
-    <SelectTrigger
-      className="group w-full md:w-48 border border-gray-300 bg-white text-gray-900 rounded-lg 
-                 hover:bg-amber-50 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 
-                 transition data-[state=open]:bg-amber-100 data-[state=open]:border-amber-500 flex items-center"
-    >
-      <Filter
-        className="h-4 w-4 mr-2 text-gray-500 transition-colors 
-                   group-hover:text-amber-600 group-data-[state=open]:text-amber-600"
-      />
-      <SelectValue placeholder="Filter by type" />
-    </SelectTrigger>
+          {/* Filter */}
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="h-12 w-full md:w-48 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center">
+              <Filter className="h-4 w-4 ml-3 mr-2 text-gray-500" />
+              <SelectValue placeholder="Filter by type" />
+            </SelectTrigger>
 
-    <SelectContent className="bg-white text-gray-900 shadow-lg rounded-lg border border-gray-200">
-      <SelectItem value="all" className="hover:bg-amber-100 cursor-pointer">
-        All Types
-      </SelectItem>
-      <SelectItem value="sale" className="hover:bg-amber-100 cursor-pointer">
-        For Sale
-      </SelectItem>
-      <SelectItem value="exchange" className="hover:bg-amber-100 cursor-pointer">
-        Exchange
-      </SelectItem>
-      <SelectItem value="donate" className="hover:bg-amber-100 cursor-pointer">
-        Donate
-      </SelectItem>
-    </SelectContent>
-  </Select>
-</div>
+            <SelectContent className="bg-white border border-gray-200 rounded-lg shadow-lg">
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="sale">For Sale</SelectItem>
+              <SelectItem value="exchange">Exchange</SelectItem>
+              <SelectItem value="donate">Donate</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-
-
-
-        {/* Books List */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Books Grid */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredBooks.map((book) => {
             const isInWishlist = wishlistIds.includes(book.id);
             const isInCart = cartIds.includes(book.id);
@@ -275,10 +256,10 @@ const Books = () => {
             return (
               <Card
                 key={book.id}
-                className="group hover:shadow-lg overflow-hidden relative"
+                className="rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg transition-all border border-gray-200"
               >
                 {/* Book Image */}
-                <div className="relative aspect-[3/4] overflow-hidden bg-muted">
+                <div className="relative aspect-[3/4] bg-gray-100">
                   <img
                     src={
                       book.bookImage
@@ -291,16 +272,17 @@ const Books = () => {
 
                   {/* Wishlist + Cart Buttons */}
                   {currentUser?.id !== book.owner?.id && (
-                    <div className="absolute top-3 right-3 flex flex-col gap-2">
+                    <div className="absolute top-3 right-3 flex flex-col gap-3">
                       <Button
                         size="icon"
                         onClick={() => toggleWishlist(book)}
                         aria-label={isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
-                        className={`rounded-full shadow-md border border-gray-200 transition-colors ${
+                        className={`rounded-full h-10 w-10 shadow-md border bg-white transition-colors ${
                           isInWishlist
                             ? "bg-amber-500 text-white hover:bg-amber-600"
-                            : "bg-white hover:bg-amber-100 text-amber-500"
+                            : "text-amber-600 hover:bg-amber-50"
                         } ${isLoading ? "opacity-70 pointer-events-none" : ""}`}
+                        disabled={isLoading}
                       >
                         <Heart className={`h-5 w-5 ${isInWishlist ? "fill-white" : ""}`} />
                       </Button>
@@ -309,11 +291,12 @@ const Books = () => {
                         size="icon"
                         onClick={() => toggleCart(book)}
                         aria-label={isInCart ? "Remove from cart" : "Add to cart"}
-                        className={`rounded-full shadow-md border border-gray-200 transition-colors ${
+                        className={`rounded-full h-10 w-10 shadow-md border bg-white transition-colors ${
                           isInCart
                             ? "bg-green-600 text-white hover:bg-green-700"
-                            : "bg-white hover:bg-green-100 text-green-600"
+                            : "text-green-600 hover:bg-green-50"
                         } ${isLoading ? "opacity-70 pointer-events-none" : ""}`}
+                        disabled={isLoading}
                       >
                         <ShoppingCart className={`h-5 w-5 ${isInCart ? "fill-white" : ""}`} />
                       </Button>
@@ -322,7 +305,7 @@ const Books = () => {
 
                   {/* Type Badge */}
                   <Badge
-                    className="absolute top-3 left-3 capitalize text-white font-medium px-3 py-1 rounded-full shadow-md"
+                    className="absolute top-3 left-3 px-3 py-1 rounded-full text-white shadow-md"
                     style={{
                       backgroundColor:
                         book.type?.toLowerCase() === "donate"
@@ -337,11 +320,11 @@ const Books = () => {
                 </div>
 
                 {/* Book Info */}
-                <CardContent className="pt-4">
-                  <h3 className="font-semibold text-lg line-clamp-1 mb-1">
+                <CardContent className="pt-4 px-5 pb-3">
+                  <h3 className="font-semibold text-lg line-clamp-1 text-gray-900 mb-1">
                     {book.title}
                   </h3>
-                  <p className="text-sm text-muted-foreground mb-2">
+                  <p className="text-sm text-gray-500 mb-2">
                     {book.author || "Unknown Author"}
                   </p>
 
@@ -350,11 +333,11 @@ const Books = () => {
                       <span className="text-lg font-bold text-green-600">FREE</span>
                     ) : (
                       <>
-                        <span className="text-xl font-bold text-amber-500">
+                        <span className="text-xl font-bold text-amber-600">
                           ₹{book.generatedPrice}
                         </span>
                         {book.originalPrice && book.generatedPrice !== 0 && (
-                          <span className="text-xs text-muted-foreground line-through">
+                          <span className="text-xs text-gray-400 line-through">
                             (Est. ₹{book.originalPrice})
                           </span>
                         )}
@@ -363,17 +346,19 @@ const Books = () => {
                   </div>
 
                   <div className="flex items-center justify-between mt-2">
-                    <Badge variant="outline">{book.quality || "N/A"}</Badge>
-                    <p className="text-xs text-muted-foreground">
+                    <Badge variant="outline" className="text-gray-700">
+                      {book.quality || "N/A"}
+                    </Badge>
+                    <p className="text-xs text-gray-500">
                       Seller: {book.owner?.name || "Unknown"}
                     </p>
                   </div>
                 </CardContent>
 
-                <CardFooter>
+                <CardFooter className="p-5 pt-0">
                   <Button
                     asChild
-                    className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+                    className="w-full h-12 text-white bg-amber-500 hover:bg-amber-600 rounded-lg"
                   >
                     <Link to={`/books/${book.id}`}>View Details</Link>
                   </Button>
@@ -384,10 +369,8 @@ const Books = () => {
         </div>
 
         {filteredBooks.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              No books found matching your criteria.
-            </p>
+          <div className="text-center py-20 text-gray-500">
+            No books found matching your criteria.
           </div>
         )}
       </div>

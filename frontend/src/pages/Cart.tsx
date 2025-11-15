@@ -13,7 +13,7 @@ interface Book {
   quality: string;
   generatedPrice: number;
   bookImage?: string;
-  available: boolean; // 👈 added availability
+  available: boolean;
 }
 
 interface User {
@@ -74,8 +74,7 @@ const Cart = () => {
 
       const transactions = res.data;
       if (transactions.length > 0) {
-        const firstTransactionId = transactions[0].id;
-        navigate(`/transaction/${firstTransactionId}`);
+        navigate(`/transaction/${transactions[0].id}`);
       } else {
         alert("No transactions created.");
       }
@@ -87,45 +86,61 @@ const Cart = () => {
 
   if (!user)
     return (
-      <div className="text-center mt-20">Please login to view your cart.</div>
+      <div className="text-center mt-20 text-gray-600 text-lg">
+        Please login to view your cart.
+      </div>
     );
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
-      <main className="flex-1 pt-20 pb-12 bg-gray-50">
+
+      <main className="flex-1 pt-24 pb-16">
         <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold mb-6 text-center">My Cart</h1>
+          <h1 className="text-4xl font-bold text-center mb-10 text-gray-800">
+            My Cart
+          </h1>
+
           {groups.length === 0 ? (
-            <p className="text-center text-gray-500 mt-10">
-              No books in your cart yet.
-            </p>
+            <div className="text-center mt-20">
+              <p className="text-gray-500 text-lg">Your cart is empty.</p>
+            </div>
           ) : (
             <>
               {groups.map((group) => (
                 <div
                   key={group.seller.id}
-                  className="mb-10 bg-white shadow-lg rounded-lg p-6"
+                  className="mb-12 bg-white rounded-xl shadow-md border border-gray-200 p-6"
                 >
-                  <div className="flex items-center justify-between mb-4">
+                  {/* Seller Header */}
+                  <div className="flex items-center justify-between border-b pb-4 mb-6">
                     <div>
-                      <h2 className="text-lg font-bold">{group.seller.name}</h2>
+                      <h2 className="text-xl font-semibold text-gray-800">
+                        Seller: {group.seller.name}
+                      </h2>
                       <p className="text-sm text-gray-500">
                         {group.seller.email}
                       </p>
                     </div>
-                    <div>
-                      <span className="text-lg font-semibold text-amber-600">
-                        Total: ₹{group.totalPrice.toFixed(2)}
-                      </span>
-                    </div>
+
+                    <span className="text-xl font-bold text-amber-600">
+                      Total: ₹{group.totalPrice.toFixed(2)}
+                    </span>
                   </div>
-                  <div className="grid md:grid-cols-3 gap-6">
+
+                  {/* Books */}
+                  <div className="grid gap-6 md:grid-cols-3">
                     {group.cartItems.map((item) => (
-                      <Card key={item.id} className="shadow-lg">
+                      <Card
+                        key={item.id}
+                        className="rounded-xl border shadow-sm hover:shadow-lg transition"
+                      >
                         <CardHeader>
-                          <CardTitle>{item.book.title}</CardTitle>
+                          <CardTitle className="text-lg font-semibold">
+                            {item.book.title}
+                          </CardTitle>
                         </CardHeader>
+
                         <CardContent>
                           <img
                             src={
@@ -136,42 +151,50 @@ const Cart = () => {
                             alt={item.book.title}
                             className={`rounded-lg mb-3 w-full h-64 object-cover ${
                               item.book.available === false
-                                ? "filter blur-sm opacity-60"
+                                ? "blur-sm opacity-60"
                                 : ""
                             }`}
                           />
-                          <p className="text-sm text-muted-foreground mb-2">
+
+                          <p className="text-sm text-gray-500 mb-1">
                             {item.book.author}
                           </p>
-                          <p className="text-sm mb-2">
+                          <p className="text-sm mb-1">
                             Quality: {item.book.quality}
                           </p>
+
                           <p className="font-semibold text-amber-600 mb-3">
                             ₹{item.book.generatedPrice}
                           </p>
+
                           {item.book.available === false ? (
-                            <p className="text-red-500 font-semibold">
+                            <p className="text-red-500 font-semibold text-sm">
                               Not Available
                             </p>
                           ) : (
                             <Button
-                              variant="destructive"
-                              onClick={() => removeFromCart(item.id)}
-                            >
-                              Remove
-                            </Button>
+  onClick={() => removeFromCart(item.id)}
+  className="w-full bg-teal-600 text-white hover:bg-teal-700 font-semibold shadow-md"
+>
+  Remove
+</Button>
+
+
+
                           )}
                         </CardContent>
                       </Card>
                     ))}
                   </div>
-                  <div className="text-right mt-8">
+
+                  {/* Checkout */}
+                  <div className="text-right mt-10">
                     <Button
-                      className="bg-amber-500 text-white hover:bg-amber-600"
+                      className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 text-lg rounded-lg shadow-md"
                       onClick={handleCheckout}
                       disabled={group.cartItems.some(
-                        (item) => item.book.available === false
-                      )} // disable checkout if any unavailable
+                        (i) => i.book.available === false
+                      )}
                     >
                       Proceed to Order
                     </Button>
@@ -182,6 +205,7 @@ const Cart = () => {
           )}
         </div>
       </main>
+
       <Footer />
     </div>
   );

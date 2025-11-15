@@ -1,221 +1,248 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
 
-interface WishlistItem {
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+import { Heart, ShoppingCart } from "lucide-react";
+
+interface User {
   id: number;
-  book: {
-    id: number;
-    title: string;
-    author?: string;
-    quality?: string;
-    generatedPrice: number;
-    bookImage?: string;
-    isAvailable: boolean; // 👈 availability flag
-  };
+  name?: string;
 }
 
-interface CartItem {
+interface Book {
   id: number;
-  book: { id: number };
+  title: string;
+  author?: string;
+  quality?: string;
+  type?: string;
+  originalPrice: number;
+  generatedPrice?: number;
+  available: boolean;
+  bookImage?: string;
+  owner?: User;
 }
 
 const Wishlist = () => {
-  const storedUser = localStorage.getItem("user");
-  const user = storedUser ? JSON.parse(storedUser) : null;
-  const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [loadingBookId, setLoadingBookId] = useState<number | null>(null);
+  const [wishlist, setWishlist] = useState<Book[]>([]);
+  const [cartIds, setCartIds] = useState<number[]>([]);
+  const [loadingIds, setLoadingIds] = useState<{ [key: number]: boolean }>({});
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
-    if (user?.id) {
-      fetchWishlist();
-      fetchCart();
-    }
-  }, [user?.id]);
+    const stored = localStorage.getItem("user");
+    if (stored) setCurrentUser(JSON.parse(stored));
+  }, []);
 
-  // ✅ Fetch Wishlist
-  const fetchWishlist = async () => {
-    try {
-      const res = await axios.get(`http://localhost:8082/api/wishlist`, {
-        params: { userId: user.id },
-      });
-      setWishlist(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  useEffect(() => {
+    if (!currentUser?.id) return;
 
-  // ✅ Fetch Cart
-  const fetchCart = async () => {
-    try {
-      const res = await axios.get(`http://localhost:8082/api/cart`, {
-        params: { userId: user.id },
-      });
-      setCartItems(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    const fetchData = async () => {
+      try {
+        const [wishlistRes, cartRes] = await Promise.all([
+          axios.get("http://localhost:8082/api/wishlist", {
+            params: { userId: currentUser.id },
+          }),
+          axios.get("http://localhost:8082/api/cart", {
+            params: { userId: currentUser.id },
+          }),
+        ]);
 
-  // ❤️ Remove from Wishlist
-  const removeFromWishlist = async (bookId: number) => {
-    try {
-      await axios.delete(`http://localhost:8082/api/wishlist/remove`, {
-        params: { userId: user.id, bookId },
-      });
-      setWishlist((prev) => prev.filter((item) => item.book.id !== bookId));
-      toast.success("Book removed from wishlist!");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to remove from wishlist!");
-    }
-  };
-
-  // 🛒 Add to Cart
-  const addToCart = async (bookId: number) => {
-    setLoadingBookId(bookId);
-    try {
-      await axios.post(`http://localhost:8082/api/cart/add`, null, {
-        params: { userId: user.id, bookId },
-      });
-      toast.success("Book added to cart!");
-      fetchCart();
-    } catch (err: any) {
-      if (err.response?.data?.message?.includes("exists")) {
-        toast.error("Book already in cart!");
-      } else {
-        toast.error("Failed to add to cart!");
+        setWishlist(wishlistRes.data.map((it: any) => it.book));
+        setCartIds(cartRes.data.map((it: any) => it.book.id));
+      } catch (err) {
+        console.error(err);
       }
-    } finally {
-      setLoadingBookId(null);
-    }
+    };
+
+    fetchData();
+  }, [currentUser?.id]);
+
+  const setItemLoading = (id: number, val: boolean) => {
+    setLoadingIds((prev) => ({ ...prev, [id]: val }));
   };
 
-  // ❌ Remove from Cart
-  const removeFromCart = async (bookId: number) => {
-    setLoadingBookId(bookId);
+  const removeFromWishlist = async (bookId: number) => {
+    if (!currentUser?.id) return;
+
+    setItemLoading(bookId, true);
+
     try {
-      await axios.delete(`http://localhost:8082/api/cart/remove`, {
-        params: { userId: user.id, bookId },
+      await axios.delete("http://localhost:8082/api/wishlist/remove", {
+        params: { userId: currentUser.id, bookId },
       });
-      toast.success("Book removed from cart!");
-      fetchCart();
+
+      setWishlist((prev) => prev.filter((b) => b.id !== bookId));
     } catch (err) {
       console.error(err);
-      toast.error("Failed to remove from cart!");
     } finally {
-      setLoadingBookId(null);
+      setItemLoading(bookId, false);
     }
   };
 
-  // 🧠 Helper: check if in cart
-  const isInCart = (bookId: number) =>
-    cartItems.some((item) => item.book.id === bookId);
+  const toggleCart = async (book: Book) => {
+    if (!currentUser?.id) return;
 
-  if (!user)
-    return (
-      <div className="text-center mt-20 text-gray-600">
-        Please login to view your wishlist.
-      </div>
-    );
+    const bookId = book.id;
+    setItemLoading(bookId, true);
+
+    try {
+      if (cartIds.includes(bookId)) {
+        await axios.delete("http://localhost:8082/api/cart/remove", {
+          params: { userId: currentUser.id, bookId },
+        });
+        setCartIds((prev) => prev.filter((id) => id !== bookId));
+      } else {
+        await axios.post("http://localhost:8082/api/cart/add", null, {
+          params: { userId: currentUser.id, bookId },
+        });
+        setCartIds((prev) => [...prev, bookId]);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setItemLoading(bookId, false);
+    }
+  };
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
-      <main className="flex-1 pt-20 pb-12 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <h1 className="text-3xl font-bold mb-6 text-center">My Wishlist</h1>
 
-          {wishlist.length === 0 ? (
-            <p className="text-center text-gray-500 mt-10">
-              No books in your wishlist yet.
-            </p>
-          ) : (
-            <div className="grid md:grid-cols-3 gap-6">
-              {wishlist.map((item) => {
-                const book = item.book;
-                const inCart = isInCart(book.id);
-
-                return (
-                  <Card key={item.id} className="shadow-lg">
-                    <CardHeader>
-                      <CardTitle>{book.title}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <img
-                        src={
-                          book.bookImage
-                            ? `http://localhost:8082${book.bookImage}`
-                            : "https://via.placeholder.com/300x400?text=No+Image"
-                        }
-                        alt={book.title}
-                        className={`rounded-lg mb-3 w-full h-64 object-cover ${
-                          book.isAvailable === false
-                            ? "filter blur-sm opacity-60"
-                            : ""
-                        }`}
-                      />
-                      <p className="text-sm mb-2 text-muted-foreground">
-                        by {book.author || "Unknown Author"}
-                      </p>
-                      <p className="text-sm mb-2">
-                        Quality: {book.quality || "N/A"}
-                      </p>
-                      <p className="font-semibold mb-4">
-                        {book.generatedPrice === 0 ? (
-                          <span className="text-green-600 font-bold">FREE</span>
-                        ) : (
-                          <>₹ {book.generatedPrice}</>
-                        )}
-                      </p>
-
-                      <div className="flex gap-3">
-                        {book.isAvailable === false ? (
-                          <p className="text-red-500 font-semibold">
-                            Not Available
-                          </p>
-                        ) : inCart ? (
-                          <Button
-                            variant="secondary"
-                            onClick={() => removeFromCart(book.id)}
-                            disabled={loadingBookId === book.id}
-                          >
-                            {loadingBookId === book.id
-                              ? "Removing..."
-                              : "Remove from Cart"}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="default"
-                            onClick={() => addToCart(book.id)}
-                            disabled={loadingBookId === book.id}
-                          >
-                            {loadingBookId === book.id
-                              ? "Adding..."
-                              : "Add to Cart"}
-                          </Button>
-                        )}
-
-                        <Button
-                          variant="destructive"
-                          onClick={() => removeFromWishlist(book.id)}
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
+      <div className="container max-w-7xl mx-auto px-4 py-10 flex-1">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-extrabold text-gray-900">Your Wishlist</h1>
+          <p className="mt-2 text-gray-600">
+            All books you have added to your wishlist appear here.
+          </p>
         </div>
-      </main>
+
+        {/* FIXED GRID ALIGNMENT */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 items-stretch">
+          {wishlist.map((book) => {
+            const isInCart = cartIds.includes(book.id);
+            const isLoading = !!loadingIds[book.id];
+
+            return (
+              <Card
+                key={book.id}
+                className="flex flex-col h-full rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg transition-all border border-gray-200"
+              >
+                {/* Image Section */}
+                <div className="relative aspect-[3/4] bg-gray-100">
+                  <img
+                    src={
+                      book.bookImage
+                        ? `http://localhost:8082${book.bookImage}`
+                        : "https://via.placeholder.com/300x400?text=No+Image"
+                    }
+                    alt={book.title}
+                    className="w-full h-full object-cover"
+                  />
+
+                  {/* Wishlist Remove Button */}
+                  <Button
+                    size="icon"
+                    onClick={() => removeFromWishlist(book.id)}
+                    aria-label="Remove from wishlist"
+                    className={`absolute top-3 right-3 rounded-full h-10 w-10 shadow-md border bg-amber-500 text-white hover:bg-amber-600 transition-colors ${
+                      isLoading ? "opacity-60 pointer-events-none" : ""
+                    }`}
+                    disabled={isLoading}
+                  >
+                    <Heart className="h-5 w-5 fill-white" />
+                  </Button>
+
+                  {/* Cart Button */}
+                  <Button
+                    size="icon"
+                    onClick={() => toggleCart(book)}
+                    aria-label="Toggle cart"
+                    className={`absolute top-16 right-3 rounded-full h-10 w-10 shadow-md border bg-white transition-colors ${
+                      isInCart
+                        ? "bg-green-600 text-white hover:bg-green-700"
+                        : "text-green-600 hover:bg-green-50"
+                    } ${isLoading ? "opacity-60 pointer-events-none" : ""}`}
+                  >
+                    <ShoppingCart className={`h-5 w-5 ${isInCart ? "fill-white" : ""}`} />
+                  </Button>
+
+                  {/* Book Type Badge */}
+                  <Badge
+                    className="absolute top-3 left-3 px-3 py-1 rounded-full text-white shadow-md"
+                    style={{
+                      backgroundColor:
+                        book.type?.toLowerCase() === "donate"
+                          ? "#16a34a"
+                          : book.type?.toLowerCase() === "exchange"
+                          ? "#3b82f6"
+                          : "#f59e0b",
+                    }}
+                  >
+                    {book.type || "Sale"}
+                  </Badge>
+                </div>
+
+                {/* Content */}
+                <CardContent className="flex-1 pt-4 px-5 pb-3">
+                  <h3 className="font-semibold text-lg line-clamp-1 text-gray-900 mb-1">
+                    {book.title}
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-2">
+                    {book.author || "Unknown Author"}
+                  </p>
+
+                  <div className="flex items-baseline gap-2 mb-2">
+                    {book.generatedPrice === 0 ? (
+                      <span className="text-lg font-bold text-green-600">FREE</span>
+                    ) : (
+                      <>
+                        <span className="text-xl font-bold text-amber-600">
+                          ₹{book.generatedPrice}
+                        </span>
+                        <span className="text-xs text-gray-400 line-through">
+                          (₹{book.originalPrice})
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2">
+                    <Badge variant="outline" className="text-gray-700">
+                      {book.quality || "N/A"}
+                    </Badge>
+                    <p className="text-xs text-gray-500">
+                      Seller: {book.owner?.name || "Unknown"}
+                    </p>
+                  </div>
+                </CardContent>
+
+                {/* Footer */}
+                <CardFooter className="p-5 pt-0">
+                  <Button
+                    asChild
+                    className="w-full h-12 text-white bg-amber-500 hover:bg-amber-600 rounded-lg"
+                  >
+                    <Link to={`/books/${book.id}`}>View Details</Link>
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
+        </div>
+
+        {wishlist.length === 0 && (
+          <div className="text-center py-20 text-gray-500">
+            Your wishlist is empty.
+          </div>
+        )}
+      </div>
+
       <Footer />
     </div>
   );
