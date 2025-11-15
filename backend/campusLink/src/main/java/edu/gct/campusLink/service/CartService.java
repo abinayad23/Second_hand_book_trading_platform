@@ -9,7 +9,7 @@ import edu.gct.campusLink.dao.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.*;
 
 @Service
 public class CartService {
@@ -41,11 +41,11 @@ public class CartService {
         }
 
         // don't add if already in cart — increment quantity if you want
-            CartItem item = new CartItem();
-            item.setUser(user);
-            item.setBook(book);
+        CartItem item = new CartItem();
+        item.setUser(user);
+        item.setBook(book);
 
-            return cartRepository.save(item);
+        return cartRepository.save(item);
 
     }
 
@@ -58,5 +58,22 @@ public class CartService {
     public void clearCart(Long userId) {
         var items = cartRepository.findByUserId(userId);
         cartRepository.deleteAll(items);
+    }
+
+    public Map<User, List<CartItem>> getCartGroupsBySeller(User user) {
+        List<CartItem> cartItems = cartRepository.findByUser(user);
+        Map<User, List<CartItem>> bySeller = new HashMap<>();
+        for (CartItem cart : cartItems) {
+            User seller = cart.getBook().getOwner();
+            bySeller.computeIfAbsent(seller, k -> new ArrayList<>()).add(cart);
+        }
+        return bySeller;
+    }
+
+    // Calculate total price for a group of cart items (by Seller)
+    public double calculateTotalBySeller(List<CartItem> cartItems) {
+        return cartItems.stream()
+                .mapToDouble(c -> c.getBook().getGeneratedPrice())
+                .sum();
     }
 }

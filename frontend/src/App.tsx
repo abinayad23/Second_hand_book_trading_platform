@@ -15,6 +15,7 @@ import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import Cart from "./pages/Cart";
+import TransactionDetails from "./pages/Transaction";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +29,8 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/books" element={<Books />} />
           <Route path="/books/:id" element={<BookDetails />} />
+          <Route path="/transaction/:id" element={<TransactionDetails />} />
+
           <Route path="/login" element={<Login />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/register" element={<Register />} />

@@ -234,11 +234,14 @@ const Books = () => {
   {/* 🧩 Filter Dropdown */}
   <Select value={filterType} onValueChange={setFilterType}>
     <SelectTrigger
-      className="w-full md:w-48 border border-gray-300 bg-white text-gray-900 rounded-lg 
+      className="group w-full md:w-48 border border-gray-300 bg-white text-gray-900 rounded-lg 
                  hover:bg-amber-50 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 
-                 transition data-[state=open]:bg-amber-100 data-[state=open]:border-amber-500"
+                 transition data-[state=open]:bg-amber-100 data-[state=open]:border-amber-500 flex items-center"
     >
-      <Filter className="h-4 w-4 mr-2 text-amber-500" />
+      <Filter
+        className="h-4 w-4 mr-2 text-gray-500 transition-colors 
+                   group-hover:text-amber-600 group-data-[state=open]:text-amber-600"
+      />
       <SelectValue placeholder="Filter by type" />
     </SelectTrigger>
 
@@ -258,6 +261,7 @@ const Books = () => {
     </SelectContent>
   </Select>
 </div>
+
 
 
 

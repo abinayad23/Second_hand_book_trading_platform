@@ -15,6 +15,7 @@ interface WishlistItem {
     quality?: string;
     generatedPrice: number;
     bookImage?: string;
+    isAvailable: boolean; // 👈 availability flag
   };
 }
 
@@ -153,7 +154,11 @@ const Wishlist = () => {
                             : "https://via.placeholder.com/300x400?text=No+Image"
                         }
                         alt={book.title}
-                        className="rounded-lg mb-3 w-full h-64 object-cover"
+                        className={`rounded-lg mb-3 w-full h-64 object-cover ${
+                          book.isAvailable === false
+                            ? "filter blur-sm opacity-60"
+                            : ""
+                        }`}
                       />
                       <p className="text-sm mb-2 text-muted-foreground">
                         by {book.author || "Unknown Author"}
@@ -170,7 +175,11 @@ const Wishlist = () => {
                       </p>
 
                       <div className="flex gap-3">
-                        {inCart ? (
+                        {book.isAvailable === false ? (
+                          <p className="text-red-500 font-semibold">
+                            Not Available
+                          </p>
+                        ) : inCart ? (
                           <Button
                             variant="secondary"
                             onClick={() => removeFromCart(book.id)}
