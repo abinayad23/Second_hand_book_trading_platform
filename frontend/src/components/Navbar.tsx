@@ -83,7 +83,9 @@ const Navbar = () => {
                 <Link to="/wishlist">
                   <Heart
                     className={`h-5 w-5 shrink-0 ${
-                      isActive("/wishlist") ? "stroke-red-600" : "stroke-red-500"
+                      isActive("/wishlist")
+                        ? "stroke-red-600 fill-red-600"
+                        : "stroke-red-500 fill-none"
                     }`}
                   />
                 </Link>
@@ -95,8 +97,8 @@ const Navbar = () => {
                   <Bell
                     className={`h-5 w-5 shrink-0 ${
                       isActive("/notifications")
-                        ? "stroke-amber-600"
-                        : "stroke-amber-500"
+                        ? "stroke-amber-600 fill-amber-600"
+                        : "stroke-amber-500 fill-none"
                     }`}
                   />
                 </Link>
@@ -107,7 +109,9 @@ const Navbar = () => {
                 <Link to="/cart">
                   <ShoppingCart
                     className={`h-5 w-5 shrink-0 ${
-                      isActive("/cart") ? "stroke-blue-600" : "stroke-blue-500"
+                      isActive("/cart")
+                        ? "stroke-blue-600 fill-blue-600"
+                        : "stroke-blue-500 fill-none"
                     }`}
                   />
                 </Link>
@@ -119,8 +123,8 @@ const Navbar = () => {
                   <Package
                     className={`h-5 w-5 shrink-0 ${
                       isActive("/orders")
-                        ? "stroke-green-600"
-                        : "stroke-green-500"
+                        ? "stroke-green-600 fill-green-600"
+                        : "stroke-green-500 fill-none"
                     }`}
                   />
                 </Link>
@@ -132,8 +136,8 @@ const Navbar = () => {
                   <User
                     className={`h-5 w-5 shrink-0 ${
                       isActive("/profile")
-                        ? "stroke-purple-600"
-                        : "stroke-purple-500"
+                        ? "stroke-purple-600 fill-purple-600"
+                        : "stroke-purple-500 fill-none"
                     }`}
                   />
                 </Link>
