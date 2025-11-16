@@ -13,4 +13,7 @@ public interface AdminService {
     List<Review> getAllReviews();
     //List<Transaction> getAllTransactions();
     void deleteReview(Long reviewId);
+    User updateUserRole(Long userId, String role);
+    User toggleUserVerification(Long userId);
+    void deleteUser(Long userId);
 }

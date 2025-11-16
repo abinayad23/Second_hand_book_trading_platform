@@ -1,5 +1,6 @@
 package edu.gct.campusLink.bean;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -11,20 +12,24 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "sender_id")
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "sender_id", nullable = false)
+    @JsonIgnoreProperties({"password", "authorities", "accountNonExpired", "accountNonLocked", "credentialsNonExpired", "enabled"})
     private User sender;
 
-    @ManyToOne
-    @JoinColumn(name = "receiver_id")
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "receiver_id", nullable = false)
+    @JsonIgnoreProperties({"password", "authorities", "accountNonExpired", "accountNonLocked", "credentialsNonExpired", "enabled"})
     private User receiver;
 
+    @Column(nullable = false, length = 1000)
     private String content;
+
     private LocalDateTime timestamp = LocalDateTime.now();
+
     private boolean isRead = false;
 
     // Getters and Setters
-
     public Long getId() {
         return id;
     }
@@ -73,3 +78,4 @@ public class Message {
         isRead = read;
     }
 }
+
