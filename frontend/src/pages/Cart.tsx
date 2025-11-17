@@ -1,10 +1,12 @@
+// src/pages/Cart.tsx
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import axios, { AxiosHeaders } from "axios";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getUserFromToken } from "@/utils/jwtHelper";
 
 interface Book {
   id: number;
@@ -34,20 +36,45 @@ interface CartGroup {
   totalPrice: number;
 }
 
+// 🔹 Axios instance with JWT interceptor
+const axiosInstance = axios.create();
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    if (!config.headers) {
+      config.headers = new AxiosHeaders();
+    }
+    (config.headers as AxiosHeaders).set("Authorization", `Bearer ${token}`);
+  }
+  return config;
+});
+
 const Cart = () => {
-  const storedUser = localStorage.getItem("user");
-  const user = storedUser ? JSON.parse(storedUser) : null;
+  const [user, setUser] = useState<User | null>(null);
   const [groups, setGroups] = useState<CartGroup[]>([]);
   const navigate = useNavigate();
 
+  // Get logged-in user from JWT
+  useEffect(() => {
+    const loggedInUser = getUserFromToken();
+    if (loggedInUser?.email) {
+      setUser({
+        id: loggedInUser.id ?? 0,
+        name: loggedInUser.username ?? "",
+        email: loggedInUser.email ?? "",
+      });
+    }
+  }, []);
+
+  // Fetch grouped cart
   useEffect(() => {
     if (user?.id) fetchGroupedCart();
   }, [user?.id]);
 
   const fetchGroupedCart = async () => {
     try {
-      const res = await axios.get(
-        `http://localhost:8082/api/cart/user/${user.id}/grouped`
+      const res = await axiosInstance.get<CartGroup[]>(
+        `http://localhost:8082/api/cart/user/${user?.id}/grouped`
       );
       setGroups(res.data || []);
     } catch (err) {
@@ -57,7 +84,7 @@ const Cart = () => {
 
   const removeFromCart = async (cartId: number) => {
     try {
-      await axios.delete(`http://localhost:8082/api/cart/${cartId}`);
+      await axiosInstance.delete(`http://localhost:8082/api/cart/${cartId}`);
       fetchGroupedCart();
     } catch (err) {
       console.error(err);
@@ -66,10 +93,10 @@ const Cart = () => {
 
   const handleCheckout = async () => {
     try {
-      const res = await axios.post(
+      const res = await axiosInstance.post(
         "http://localhost:8082/api/transactions/create",
         null,
-        { params: { buyerId: user.id } }
+        { params: { buyerId: user?.id } }
       );
 
       const transactions = res.data;
@@ -118,9 +145,7 @@ const Cart = () => {
                       <h2 className="text-xl font-semibold text-gray-800">
                         Seller: {group.seller.name}
                       </h2>
-                      <p className="text-sm text-gray-500">
-                        {group.seller.email}
-                      </p>
+                      <p className="text-sm text-gray-500">{group.seller.email}</p>
                     </div>
 
                     <span className="text-xl font-bold text-amber-600">
@@ -150,37 +175,28 @@ const Cart = () => {
                             }
                             alt={item.book.title}
                             className={`rounded-lg mb-3 w-full h-64 object-cover ${
-                              item.book.available === false
-                                ? "blur-sm opacity-60"
-                                : ""
+                              !item.book.available ? "blur-sm opacity-60" : ""
                             }`}
                           />
 
-                          <p className="text-sm text-gray-500 mb-1">
-                            {item.book.author}
-                          </p>
-                          <p className="text-sm mb-1">
-                            Quality: {item.book.quality}
-                          </p>
+                          <p className="text-sm text-gray-500 mb-1">{item.book.author}</p>
+                          <p className="text-sm mb-1">Quality: {item.book.quality}</p>
 
                           <p className="font-semibold text-amber-600 mb-3">
                             ₹{item.book.generatedPrice}
                           </p>
 
-                          {item.book.available === false ? (
+                          {!item.book.available ? (
                             <p className="text-red-500 font-semibold text-sm">
                               Not Available
                             </p>
                           ) : (
                             <Button
-  onClick={() => removeFromCart(item.id)}
-  className="w-full bg-teal-600 text-white hover:bg-teal-700 font-semibold shadow-md"
->
-  Remove
-</Button>
-
-
-
+                              onClick={() => removeFromCart(item.id)}
+                              className="w-full bg-teal-600 text-white hover:bg-teal-700 font-semibold shadow-md"
+                            >
+                              Remove
+                            </Button>
                           )}
                         </CardContent>
                       </Card>
@@ -192,9 +208,7 @@ const Cart = () => {
                     <Button
                       className="bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 text-lg rounded-lg shadow-md"
                       onClick={handleCheckout}
-                      disabled={group.cartItems.some(
-                        (i) => i.book.available === false
-                      )}
+                      disabled={group.cartItems.some((i) => !i.book.available)}
                     >
                       Proceed to Order
                     </Button>

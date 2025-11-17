@@ -1,5 +1,6 @@
+// src/pages/Books.tsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios, { AxiosHeaders } from "axios";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,11 +16,13 @@ import {
 import { Search, Filter, Heart, ShoppingCart } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { getUserFromToken } from "@/utils/jwtHelper";
 
 interface User {
   id: number;
   name?: string;
   email?: string;
+  role?: string;
 }
 
 interface Book {
@@ -36,6 +39,19 @@ interface Book {
   owner?: User;
 }
 
+// 🔹 Axios instance with JWT interceptor
+const axiosInstance = axios.create();
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    if (!config.headers) {
+      config.headers = new AxiosHeaders();
+    }
+    (config.headers as AxiosHeaders).set("Authorization", `Bearer ${token}`);
+  }
+  return config;
+});
+
 const Books = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,21 +59,26 @@ const Books = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [wishlistIds, setWishlistIds] = useState<number[]>([]);
   const [cartIds, setCartIds] = useState<number[]>([]);
-  const [loadingIds, setLoadingIds] = useState<{ [id: number]: boolean }>(
-    {}
-  );
+  const [loadingIds, setLoadingIds] = useState<{ [id: number]: boolean }>({});
 
-  // get logged-in user
+  // 🔹 Get logged-in user from JWT
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) setCurrentUser(JSON.parse(storedUser));
+    const user = getUserFromToken();
+    if (user && user.id) {
+      setCurrentUser({
+        id: user.id,
+        name: user.username,
+        email: user.email,
+        role: user.role,
+      });
+    }
   }, []);
 
-  // fetch books
+  // 🔹 Fetch all books
   useEffect(() => {
     const fetchBooks = async () => {
       try {
-        const res = await axios.get<Book[]>("http://localhost:8082/api/books");
+        const res = await axiosInstance.get<Book[]>("http://localhost:8082/api/books");
         setBooks(res.data);
       } catch (err) {
         console.error("Error fetching books:", err);
@@ -66,17 +87,17 @@ const Books = () => {
     fetchBooks();
   }, []);
 
-  // fetch wishlist & cart for current user
+  // 🔹 Fetch wishlist & cart for current user
   useEffect(() => {
     if (!currentUser?.id) return;
 
     const fetchLists = async () => {
       try {
         const [wishlistRes, cartRes] = await Promise.all([
-          axios.get("http://localhost:8082/api/wishlist", {
+          axiosInstance.get("http://localhost:8082/api/wishlist", {
             params: { userId: currentUser.id },
           }),
-          axios.get("http://localhost:8082/api/cart", {
+          axiosInstance.get("http://localhost:8082/api/cart", {
             params: { userId: currentUser.id },
           }),
         ]);
@@ -91,14 +112,12 @@ const Books = () => {
     fetchLists();
   }, [currentUser?.id]);
 
-  // search handler
+  // 🔹 Search handler
   const handleSearch = async () => {
     try {
-      const res = await axios.get<Book[]>(
+      const res = await axiosInstance.get<Book[]>(
         searchQuery.trim()
-          ? `http://localhost:8082/api/books/search?q=${encodeURIComponent(
-              searchQuery
-            )}`
+          ? `http://localhost:8082/api/books/search?q=${encodeURIComponent(searchQuery)}`
           : "http://localhost:8082/api/books"
       );
       setBooks(res.data);
@@ -107,11 +126,11 @@ const Books = () => {
     }
   };
 
-  // helper to set per-item loading
+  // 🔹 Helper to set per-item loading
   const setItemLoading = (bookId: number, value: boolean) =>
     setLoadingIds((p) => ({ ...p, [bookId]: value }));
 
-  // toggle wishlist: if in wishlist -> remove, else add
+  // 🔹 Toggle wishlist
   const toggleWishlist = async (book: Book) => {
     if (!currentUser?.id) {
       alert("Please log in first.");
@@ -127,28 +146,25 @@ const Books = () => {
 
     try {
       if (wishlistIds.includes(bookId)) {
-        // remove
-        await axios.delete("http://localhost:8082/api/wishlist/remove", {
+        await axiosInstance.delete("http://localhost:8082/api/wishlist/remove", {
           params: { userId: currentUser.id, bookId },
         });
         setWishlistIds((prev) => prev.filter((id) => id !== bookId));
       } else {
-        // add
-        await axios.post("http://localhost:8082/api/wishlist/add", null, {
+        await axiosInstance.post("http://localhost:8082/api/wishlist/add", null, {
           params: { userId: currentUser.id, bookId },
         });
         setWishlistIds((prev) => [...prev, bookId]);
       }
     } catch (err: any) {
       console.error("Wishlist toggle error:", err);
-      const msg = err?.response?.data?.message || "Failed to update wishlist.";
-      alert(msg);
+      alert(err?.response?.data?.message || "Failed to update wishlist.");
     } finally {
       setItemLoading(bookId, false);
     }
   };
 
-  // toggle cart: if in cart -> remove, else add
+  // 🔹 Toggle cart
   const toggleCart = async (book: Book) => {
     if (!currentUser?.id) {
       alert("Please log in first.");
@@ -164,28 +180,25 @@ const Books = () => {
 
     try {
       if (cartIds.includes(bookId)) {
-        // remove
-        await axios.delete("http://localhost:8082/api/cart/remove", {
+        await axiosInstance.delete("http://localhost:8082/api/cart/remove", {
           params: { userId: currentUser.id, bookId },
         });
         setCartIds((prev) => prev.filter((id) => id !== bookId));
       } else {
-        // add
-        await axios.post("http://localhost:8082/api/cart/add", null, {
+        await axiosInstance.post("http://localhost:8082/api/cart/add", null, {
           params: { userId: currentUser.id, bookId },
         });
         setCartIds((prev) => [...prev, bookId]);
       }
     } catch (err: any) {
       console.error("Cart toggle error:", err);
-      const msg = err?.response?.data?.message || "Failed to update cart.";
-      alert(msg);
+      alert(err?.response?.data?.message || "Failed to update cart.");
     } finally {
       setItemLoading(bookId, false);
     }
   };
 
-  // filtered books
+  // 🔹 Filtered books
   const filteredBooks = books.filter((book) => {
     const matchesType =
       filterType === "all" ||
@@ -200,7 +213,6 @@ const Books = () => {
       <Navbar />
 
       <div className="container max-w-7xl mx-auto px-4 py-10 flex-1">
-        {/* Centered Title */}
         <div className="mb-10 text-center">
           <h1 className="text-4xl font-extrabold text-gray-900">Browse Books</h1>
           <p className="mt-2 text-gray-600 max-w-2xl mx-auto">
@@ -210,7 +222,6 @@ const Books = () => {
 
         {/* Search + Filter */}
         <div className="flex flex-col md:flex-row items-center gap-4 mb-8">
-          {/* Search Bar */}
           <div className="relative w-full md:flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
@@ -222,7 +233,6 @@ const Books = () => {
             />
           </div>
 
-          {/* Search Button */}
           <Button
             onClick={handleSearch}
             className="h-12 px-6 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow"
@@ -230,7 +240,6 @@ const Books = () => {
             Search
           </Button>
 
-          {/* Filter */}
           <Select value={filterType} onValueChange={setFilterType}>
             <SelectTrigger className="h-12 w-full md:w-48 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center">
               <Filter className="h-4 w-4 ml-3 mr-2 text-gray-500" />

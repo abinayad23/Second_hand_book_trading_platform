@@ -1,53 +1,90 @@
 package edu.gct.campusLink.config;
 
+import edu.gct.campusLink.security.JwtUserValidationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.List;
+import java.util.Arrays;
 
 @Configuration
-@EnableWebSecurity
 public class SecurityConfig {
 
-    private final LocalStorageAuthFilter localStorageAuthFilter;
+    private final JwtFilter jwtFilter;
+    private final JwtUserValidationFilter jwtUserValidationFilter;
 
-    public SecurityConfig(LocalStorageAuthFilter localStorageAuthFilter) {
-        this.localStorageAuthFilter = localStorageAuthFilter;
+    public SecurityConfig(JwtFilter jwtFilter,
+                          JwtUserValidationFilter jwtUserValidationFilter) {
+        this.jwtFilter = jwtFilter;
+        this.jwtUserValidationFilter = jwtUserValidationFilter;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/**").permitAll()
-                        .anyRequest().permitAll()
-                );
+    public BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-        // Add our custom filter before default UsernamePasswordAuthenticationFilter
-        http.addFilterBefore(localStorageAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
-        return http.build();
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        config.setAllowCredentials(true);
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Origin", "Content-Type", "Accept", "Authorization", "X-User-ID"));
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(Arrays.asList(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://localhost:5174"
+        ));
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setAllowedHeaders(Arrays.asList("*"));
+        config.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource src = new UrlBasedCorsConfigurationSource();
+        src.registerCorsConfiguration("/**", config);
+
+        return src;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+        http
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/api/users/initiate",
+                                "/api/users/verify",
+                                "/api/users/login",
+                                "/api/users/register",
+                                "/api/users/validate",
+                                "/api/auth/login",
+                                "/api/auth/validate",
+                                "/api/auth/send-otp",
+                                "/api/auth/verify-otp",
+                                "/uploads/**"
+                        ).permitAll()
+                        .anyRequest().authenticated()
+                )
+
+                // 🔥 Order is IMPORTANT:
+                // 1) Validate userId access
+                .addFilterBefore(jwtUserValidationFilter, UsernamePasswordAuthenticationFilter.class)
+
+                // 2) Validate Authentication (JWT)
+                .addFilterBefore(jwtFilter, JwtUserValidationFilter.class);
+
+        return http.build();
     }
 }

@@ -1,14 +1,27 @@
+// src/pages/Wishlist.tsx
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { Link } from "react-router-dom";
+import axios, { AxiosHeaders } from "axios";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
 import { Heart, ShoppingCart } from "lucide-react";
+import { getUserFromToken } from "@/utils/jwtHelper";
+
+// 🔹 Axios instance with JWT interceptor
+const axiosInstance = axios.create();
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    if (!config.headers) {
+      config.headers = new AxiosHeaders();
+    }
+    (config.headers as AxiosHeaders).set("Authorization", `Bearer ${token}`);
+  }
+  return config;
+});
 
 interface User {
   id: number;
@@ -35,8 +48,13 @@ const Wishlist = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-    if (stored) setCurrentUser(JSON.parse(stored));
+    const userFromToken = getUserFromToken();
+    if (userFromToken?.id) {
+      setCurrentUser({
+        id: userFromToken.id,
+        name: userFromToken.username,
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -45,10 +63,10 @@ const Wishlist = () => {
     const fetchData = async () => {
       try {
         const [wishlistRes, cartRes] = await Promise.all([
-          axios.get("http://localhost:8082/api/wishlist", {
+          axiosInstance.get("http://localhost:8082/api/wishlist", {
             params: { userId: currentUser.id },
           }),
-          axios.get("http://localhost:8082/api/cart", {
+          axiosInstance.get("http://localhost:8082/api/cart", {
             params: { userId: currentUser.id },
           }),
         ]);
@@ -71,12 +89,10 @@ const Wishlist = () => {
     if (!currentUser?.id) return;
 
     setItemLoading(bookId, true);
-
     try {
-      await axios.delete("http://localhost:8082/api/wishlist/remove", {
+      await axiosInstance.delete("http://localhost:8082/api/wishlist/remove", {
         params: { userId: currentUser.id, bookId },
       });
-
       setWishlist((prev) => prev.filter((b) => b.id !== bookId));
     } catch (err) {
       console.error(err);
@@ -93,12 +109,12 @@ const Wishlist = () => {
 
     try {
       if (cartIds.includes(bookId)) {
-        await axios.delete("http://localhost:8082/api/cart/remove", {
+        await axiosInstance.delete("http://localhost:8082/api/cart/remove", {
           params: { userId: currentUser.id, bookId },
         });
         setCartIds((prev) => prev.filter((id) => id !== bookId));
       } else {
-        await axios.post("http://localhost:8082/api/cart/add", null, {
+        await axiosInstance.post("http://localhost:8082/api/cart/add", null, {
           params: { userId: currentUser.id, bookId },
         });
         setCartIds((prev) => [...prev, bookId]);
@@ -169,7 +185,9 @@ const Wishlist = () => {
                         : "text-green-600 hover:bg-green-50"
                     } ${isLoading ? "opacity-60 pointer-events-none" : ""}`}
                   >
-                    <ShoppingCart className={`h-5 w-5 ${isInCart ? "fill-white" : ""}`} />
+                    <ShoppingCart
+                      className={`h-5 w-5 ${isInCart ? "fill-white" : ""}`}
+                    />
                   </Button>
 
                   {/* Book Type Badge */}

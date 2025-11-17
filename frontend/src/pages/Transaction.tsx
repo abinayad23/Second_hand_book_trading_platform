@@ -16,6 +16,7 @@ interface User {
   id: number;
   name: string;
   email: string;
+  role?: string;
 }
 
 interface Transaction {
@@ -23,40 +24,90 @@ interface Transaction {
   books: Book[];
   seller: User;
   totalPrice: number;
-  status: "PENDING" | "COMPLETED" | "CANCELLED";
+  status: "PENDING" | "COMPLETE" | "CANCEL";
 }
 
-const statusColors: any = {
-  PENDING: "bg-yellow-500 text-black",
-  COMPLETED: "bg-green-600 text-white",
-  CANCELLED: "bg-red-600 text-white",
+const statusColors: Record<Transaction["status"], string> = {
+  PENDING:"bg-yellow-500 text-black",
+  COMPLETE:"bg-green-600 text-white",
+  CANCEL:"bg-red-600 text-white",
 };
 
 const TransactionDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [transaction, setTransaction] = useState<Transaction | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  const token = localStorage.getItem("token");
 
   const fetchTransaction = async () => {
-    const res = await axios.get(`http://localhost:8082/api/transactions/${id}`);
-    setTransaction(res.data);
+    if (!token) {
+      alert("Please login to view transactions");
+      navigate("/login");
+      return;
+    }
+
+    try {
+      const res = await axios.get(`http://localhost:8082/api/transactions/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      // Map backend user object to our User type
+      const fetchedTransaction: Transaction = {
+        ...res.data,
+        seller: {
+          id: res.data.seller.id,
+          name: res.data.seller.username || res.data.seller.name || "Unknown", // map username -> name
+          email: res.data.seller.email,
+          role: res.data.seller.role,
+        },
+      };
+
+      setTransaction(fetchedTransaction);
+    } catch (error) {
+      console.error("Failed to fetch transaction:", error);
+      alert("Failed to fetch transaction");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const completeTransaction = async () => {
-    await axios.put(`http://localhost:8082/api/transactions/${id}/complete`);
-    navigate("/orders");
-  };
+  const updateTransactionStatus = async (status: "COMPLETE" | "CANCEL") => {
+    if (!transaction || !token) return;
+    setUpdating(true);
 
-  const cancelTransaction = async () => {
-    await axios.put(`http://localhost:8082/api/transactions/${id}/cancel`);
-    navigate("/cart");
+    try {
+      await axios.put(
+        `http://localhost:8082/api/transactions/${transaction.id}/${status.toLowerCase()}`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setTransaction({ ...transaction, status });
+      if (status === "COMPLETE") navigate("/orders");
+      if (status === "CANCEL") navigate("/cart");
+    } catch (error) {
+      console.error(`Failed to ${status.toLowerCase()} transaction:`, error);
+      alert(`Failed to ${status.toLowerCase()} transaction.`);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   useEffect(() => {
     if (id) fetchTransaction();
   }, [id]);
 
-  if (!transaction) return <div className="p-6">Loading transaction...</div>;
+  if (loading) return <div className="p-6 text-center">Loading transaction...</div>;
+  if (!transaction)
+    return <div className="p-6 text-center text-red-600">Transaction not found.</div>;
 
   return (
     <div className="min-h-screen p-6">
@@ -68,25 +119,23 @@ const TransactionDetails = () => {
         </CardHeader>
 
         <CardContent className="p-6 space-y-6">
-
-          {/* Seller Section */}
+          {/* Seller Info */}
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-lg font-semibold">{transaction.seller.name}</h2>
               <p className="text-sm text-muted-foreground">{transaction.seller.email}</p>
-
               <Badge className={`mt-2 ${statusColors[transaction.status]}`}>
                 {transaction.status}
               </Badge>
             </div>
 
-            {/* Price */}
+            {/* Total Price */}
             <p className="text-3xl font-bold text-orange-600">
               ₹{transaction.totalPrice}
             </p>
           </div>
 
-          {/* Books List (UPDATED) */}
+          {/* Books List */}
           <div>
             <h3 className="font-medium mb-2">Books</h3>
             <ul className="space-y-3">
@@ -96,14 +145,9 @@ const TransactionDetails = () => {
                   className="flex justify-between items-center bg-muted/30 p-4 rounded-lg border"
                 >
                   <div className="flex items-center gap-3">
-                    {/* Book icon in color */}
                     <BookOpen className="h-6 w-6 text-orange-600" />
-
-                    {/* Title */}
                     <span className="text-sm font-medium">{book.title}</span>
                   </div>
-
-                  {/* Price for each book (CLEAR & BOLD) */}
                   <span className="text-sm font-bold text-gray-900">
                     ₹{book.generatedPrice}
                   </span>
@@ -112,30 +156,28 @@ const TransactionDetails = () => {
             </ul>
           </div>
 
-          {/* Buttons */}
-         {/* Buttons */}
-{transaction.status === "PENDING" && (
-  <div className="flex gap-4 pt-4 border-t">
+          {/* Action Buttons */}
+          {transaction.status === "PENDING" && (
+            <div className="flex gap-4 pt-4 border-t">
+              <Button
+                onClick={() => updateTransactionStatus("COMPLETE")}
+                disabled={updating}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 text-sm font-semibold"
+              >
+                <CheckCircle className="h-4 w-4" />
+                {updating ? "Updating..." : "Mark Completed"}
+              </Button>
 
-    <Button
-      onClick={completeTransaction}
-      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-5 py-2 text-sm font-semibold"
-    >
-      <CheckCircle className="h-4 w-4" />
-      Mark Completed
-    </Button>
-
-    <Button
-      onClick={cancelTransaction}
-      className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2 text-sm font-semibold"
-    >
-      <XCircle className="h-4 w-4" />
-      Cancel
-    </Button>
-
-  </div>
-)}
-
+              <Button
+                onClick={() => updateTransactionStatus("CANCEL")}
+                disabled={updating}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2 text-sm font-semibold"
+              >
+                <XCircle className="h-4 w-4" />
+                {updating ? "Updating..." : "Cancel"}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

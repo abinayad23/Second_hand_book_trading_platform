@@ -1,5 +1,6 @@
+// src/pages/Profile.tsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios, { AxiosHeaders } from "axios";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,7 +12,36 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
+import { getUserFromToken } from "@/utils/jwtHelper";
 
+// ----------------------
+// Types
+// ----------------------
+interface UserType {
+  id: number;
+  name: string;
+  username: string;
+  email: string;
+  role?: string;
+  department?: string;
+  phone?: string;
+  location?: string;
+  profile_image_path?: string;
+  acceptRate?: number;
+}
+
+interface BookType {
+  id: number;
+  title: string;
+  type: string;
+  price?: number;
+  status: string;
+  bookImage?: string; // Book image
+}
+
+// ----------------------
+// Badge colors for book types
+// ----------------------
 const typeColors: Record<string, string> = {
   Sell: "bg-green-200 text-green-800",
   Donate: "bg-blue-200 text-blue-800",
@@ -20,76 +50,108 @@ const typeColors: Record<string, string> = {
   Other: "bg-gray-200 text-gray-800",
 };
 
-const capitalizeFirstLetter = (str: string) => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+const capitalizeFirstLetter = (str: string) =>
+  str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
+const generateColorFromName = (name: string) => {
+  const colors = ["bg-red-400", "bg-blue-400", "bg-green-400", "bg-yellow-400", "bg-purple-400"];
+  const index = name.charCodeAt(0) % colors.length;
+  return colors[index];
+};
+
+// ----------------------
+// Axios instance with JWT
+// ----------------------
+const axiosInstance = axios.create();
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    if (!config.headers) config.headers = new AxiosHeaders();
+    (config.headers as AxiosHeaders).set("Authorization", `Bearer ${token}`);
+  }
+  return config;
+});
+
+// ----------------------
+// Profile Component
+// ----------------------
 const Profile = () => {
-  const [user, setUser] = useState<any>(null);
-  const [userBooks, setUserBooks] = useState<any[]>([]);
+  const [user, setUser] = useState<UserType | null>(null);
+  const [userBooks, setUserBooks] = useState<BookType[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const userObj = JSON.parse(storedUser);
-      setUser(userObj);
+    const currentUser = getUserFromToken();
+    const userId = currentUser?.id;
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
 
-      axios
-        .get(`/api/books/user/${userObj.id}`)
-        .then((res) => {
-          if (Array.isArray(res.data)) setUserBooks(res.data);
-          else if (Array.isArray(res.data?.books)) setUserBooks(res.data.books);
-          else setUserBooks([]);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Error fetching user books:", err);
-          setUserBooks([]);
-          setLoading(false);
-        });
-    } else setLoading(false);
+    // Fetch user details
+    axiosInstance.get<UserType>(`http://localhost:8082/api/users/${userId}`)
+      .then((res) => setUser(res.data))
+      .catch((err) => console.error(err));
+
+    // Fetch user's books
+    axiosInstance.get<BookType[]>(`http://localhost:8082/api/books/user/${userId}`)
+      .then((res) => setUserBooks(res.data))
+      .catch((err) => console.error(err))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <div className="text-center mt-20">Loading...</div>;
   if (!user) return <div className="text-center mt-20">User not logged in.</div>;
 
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: keyof UserType, value: string) => {
     setUser({ ...user, [field]: value });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!user?.id) return;
     setSaving(true);
-    axios
-      .put(`/api/users/${user.id}`, user)
-      .then((res) => {
-        setUser(res.data);
-        localStorage.setItem("user", JSON.stringify(res.data));
-        setSaving(false);
-        alert("Profile updated successfully!");
-      })
-      .catch((err) => {
-        console.error("Error updating profile:", err);
-        setSaving(false);
-        alert("Failed to update profile.");
-      });
+    try {
+      const updatedUser = {
+        name: user.name,
+        username: user.username,
+        department: user.department,
+        phone: user.phone,
+        location: user.location,
+        profileImagePath: user.profile_image_path
+      };
+      const res = await axiosInstance.put<UserType>(
+        `http://localhost:8082/api/users/${user.id}/edit`,
+        updatedUser
+      );
+      setUser(res.data);
+      alert("Profile updated successfully!");
+    } catch (err) {
+      console.error("Error updating profile:", err);
+      alert("Failed to update profile.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-
       <main className="flex-1 pt-20 pb-12 bg-gray-50">
         <div className="container max-w-6xl mx-auto px-4">
           <Card className="shadow-lg rounded-xl">
-            {/* Header: avatar + info left, save button right */}
+            {/* Header */}
             <CardHeader className="flex flex-col md:flex-row items-center justify-between gap-6 p-6">
               <div className="flex items-center gap-6">
                 <Avatar className="h-24 w-24">
-                  <AvatarImage src={user.profileImagePath || ""} />
-                  <AvatarFallback>
-                    {user.name?.split(" ").map((n: string) => n[0]).join("")}
-                  </AvatarFallback>
+                  {user.profile_image_path ? (
+                    <AvatarImage src={`http://localhost:8082${user.profile_image_path}`} />
+                  ) : (
+                    <AvatarFallback className={`text-white ${generateColorFromName(user.name)}`}>
+                      {user.name?.split(" ").map((n) => n[0]).join("")}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
 
                 <div className="space-y-2">
@@ -109,12 +171,16 @@ const Profile = () => {
                 </div>
               </div>
 
-              <Button onClick={handleSave} disabled={saving} className="min-w-[150px] bg-amber-400 hover:bg-amber-500 text-white">
+              <Button
+                onClick={handleSave}
+                disabled={saving}
+                className="min-w-[150px] bg-amber-400 hover:bg-amber-500 text-white"
+              >
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
             </CardHeader>
 
-            {/* Content: tabs */}
+            {/* Tabs */}
             <CardContent>
               <Tabs defaultValue="info" className="mt-2">
                 <TabsList className="grid w-full grid-cols-1 md:grid-cols-3">
@@ -167,21 +233,31 @@ const Profile = () => {
                     <div className="grid sm:grid-cols-1 md:grid-cols-2 gap-4">
                       {userBooks.map((book) => {
                         const type = capitalizeFirstLetter(book.type);
-                        const badgeColor = typeColors[type] || typeColors["Other"];
+                        const badgeColor = typeColors[type] || typeColors.Other;
+
                         return (
-                          <Card key={book.id} className="p-4 shadow-sm hover:shadow-md transition-all rounded-lg">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <BookOpen className={`h-8 w-8 ${typeColors[type]?.split(" ")[1] || "text-gray-700"}`} />
-                                <div className="space-y-1">
-                                  <h4 className="font-semibold leading-tight">{book.title}</h4>
-                                  <p className="text-sm text-gray-600">
-                                    Type: <span className={`px-2 py-1 rounded ${badgeColor}`}>{type}</span>
-                                    {book.price && ` • ₹${book.price}`}
-                                  </p>
-                                </div>
+                          <Card key={book.id} className="p-4 shadow-sm hover:shadow-md transition-all rounded-lg flex gap-4">
+                            {/* Book Image */}
+                            {book.bookImage ? (
+                              <img
+                                src={`http://localhost:8082${book.bookImage}`}
+                                alt={book.title}
+                                className="h-24 w-24 object-cover rounded"
+                              />
+                            ) : (
+                              <div className="h-24 w-24 bg-gray-100 rounded flex items-center justify-center">
+                                <BookOpen className="h-5 w-5 text-gray-600" />
                               </div>
-                              <Badge variant={book.status === "active" ? "default" : "secondary"} className="capitalize">
+                            )}
+
+                            {/* Book Details */}
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-lg">{book.title}</h4>
+                              <p className="text-sm text-gray-600">
+                                Type: <span className={`px-2 py-1 rounded ${badgeColor}`}>{type}</span>
+                              </p>
+                              {book.price && <p className="text-sm text-gray-600">Price: ₹{book.price}</p>}
+                              <Badge className="capitalize mt-1" variant={book.status === "active" ? "default" : "secondary"}>
                                 {book.status}
                               </Badge>
                             </div>
@@ -199,21 +275,21 @@ const Profile = () => {
                   <div className="grid md:grid-cols-3 gap-6">
                     <Card className="text-center p-6 shadow-sm rounded-lg">
                       <div className="text-3xl font-bold text-green-600">
-                        {userBooks.filter((b) => b.type === "sell").length}
+                        {userBooks.filter((b) => b.type.toLowerCase() === "sale").length}
                       </div>
                       <p className="text-sm text-gray-600 mt-1">Books Sold</p>
                     </Card>
 
                     <Card className="text-center p-6 shadow-sm rounded-lg">
                       <div className="text-3xl font-bold text-purple-600">
-                        {userBooks.filter((b) => b.type === "exchange").length}
+                        {userBooks.filter((b) => b.type.toLowerCase() === "exchange").length}
                       </div>
                       <p className="text-sm text-gray-600 mt-1">Books Exchanged</p>
                     </Card>
 
                     <Card className="text-center p-6 shadow-sm rounded-lg">
                       <div className="text-3xl font-bold text-blue-600">
-                        {userBooks.filter((b) => b.type === "donate").length}
+                        {userBooks.filter((b) => b.type.toLowerCase() === "donate").length}
                       </div>
                       <p className="text-sm text-gray-600 mt-1">Books Donated</p>
                     </Card>
@@ -224,7 +300,6 @@ const Profile = () => {
           </Card>
         </div>
       </main>
-
       <Footer />
     </div>
   );

@@ -43,6 +43,11 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    public List<Notification> getAllNotifications(Long userId) {
+        return notificationRepository.findByUserId(userId);
+    }
+
+    @Override
     public List<Notification> getUnreadNotifications(Long userId) {
         return notificationRepository.findByUserIdAndIsReadFalse(userId);
     }
@@ -52,5 +57,14 @@ public class NotificationServiceImpl implements NotificationService {
         Notification notification = notificationRepository.findById(notificationId).orElseThrow();
         notification.setRead(true);
         notificationRepository.save(notification);
+    }
+
+    @Override
+    public void markAllAsRead(Long userId) {
+        List<Notification> unreadNotifications = notificationRepository.findByUserIdAndIsReadFalse(userId);
+        for (Notification notification : unreadNotifications) {
+            notification.setRead(true);
+        }
+        notificationRepository.saveAll(unreadNotifications);
     }
 }

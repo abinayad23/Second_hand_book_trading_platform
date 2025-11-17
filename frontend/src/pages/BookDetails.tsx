@@ -1,6 +1,7 @@
+// src/pages/BookDetails.tsx
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import axios from "axios";
+import axios, { AxiosHeaders } from "axios";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,7 @@ import {
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
+import { getUserFromToken } from "@/utils/jwtHelper";
 
 interface Owner {
   id: number;
@@ -43,6 +45,19 @@ interface Book {
   owner?: Owner;
 }
 
+// 🔹 Axios instance with JWT interceptor
+const axiosInstance = axios.create();
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    if (!config.headers) {
+      config.headers = new AxiosHeaders();
+    }
+    (config.headers as AxiosHeaders).set("Authorization", `Bearer ${token}`);
+  }
+  return config;
+});
+
 const BookDetails = () => {
   const { id } = useParams();
   const [book, setBook] = useState<Book | null>(null);
@@ -51,31 +66,32 @@ const BookDetails = () => {
   const [inCart, setInCart] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
 
-  const storedUser = localStorage.getItem("user");
-  const user = storedUser ? JSON.parse(storedUser) : null;
+  const user = getUserFromToken();
 
   useEffect(() => {
     if (id) fetchBookData();
-  }, [id, user?.id]);
+  }, [id, user?.email]);
 
   // 🔹 Fetch Book + Wishlist + Cart Status
   const fetchBookData = async () => {
     try {
       setLoading(true);
 
-      const bookRes = await axios.get<Book>(`http://localhost:8082/api/books/${id}`);
+      const bookRes = await axiosInstance.get<Book>(
+        `http://localhost:8082/api/books/${id}`
+      );
       setBook(bookRes.data);
 
-      if (user?.id) {
+      if (user?.email) {
         // Wishlist check
-        const wishlistRes = await axios.get(`http://localhost:8082/api/wishlist`, {
-          params: { userId: user.id },
+        const wishlistRes = await axiosInstance.get(`http://localhost:8082/api/wishlist`, {
+          params: { userEmail: user.email },
         });
         setInWishlist(wishlistRes.data.some((w: any) => w.book.id === Number(id)));
 
         // Cart check
-        const cartRes = await axios.get(`http://localhost:8082/api/cart`, {
-          params: { userId: user.id },
+        const cartRes = await axiosInstance.get(`http://localhost:8082/api/cart`, {
+          params: { userEmail: user.email },
         });
         setInCart(cartRes.data.some((c: any) => c.book.id === Number(id)));
       }
@@ -89,21 +105,22 @@ const BookDetails = () => {
   // ❤️ Toggle Wishlist
   const handleWishlistToggle = async () => {
     if (!user) return toast.error("Please log in to manage wishlist.");
-    if (book?.owner?.id === user.id)
+    if (book?.owner?.email === user.email)
       return toast.error("You cannot add your own book to wishlist.");
 
+    setLoadingAction(true);
     try {
       if (inWishlist) {
-        await axios.delete(`http://localhost:8082/api/wishlist/remove`, {
-          params: { userId: user.id, bookId: id },
+        await axiosInstance.delete(`http://localhost:8082/api/wishlist/remove`, {
+          params: { userEmail: user.email, bookId: id },
         });
         toast.success("Removed from wishlist!");
         setInWishlist(false);
       } else {
-        await axios.post(
+        await axiosInstance.post(
           `http://localhost:8082/api/wishlist/add`,
           {},
-          { params: { userId: user.id, bookId: id } }
+          { params: { userEmail: user.email, bookId: id } }
         );
         toast.success("Added to wishlist!");
         setInWishlist(true);
@@ -111,26 +128,28 @@ const BookDetails = () => {
     } catch (err) {
       console.error(err);
       toast.error("Error updating wishlist!");
+    } finally {
+      setLoadingAction(false);
     }
   };
 
   // 🛒 Toggle Cart (Add/Remove)
   const handleCartToggle = async () => {
     if (!user) return toast.error("Please log in to manage cart.");
-    if (book?.owner?.id === user.id)
+    if (book?.owner?.email === user.email)
       return toast.error("You cannot buy your own book.");
 
     setLoadingAction(true);
     try {
       if (inCart) {
-        await axios.delete(`http://localhost:8082/api/cart/remove`, {
-          params: { userId: user.id, bookId: id },
+        await axiosInstance.delete(`http://localhost:8082/api/cart/remove`, {
+          params: { userEmail: user.email, bookId: id },
         });
         toast.success("Removed from cart!");
         setInCart(false);
       } else {
-        await axios.post(`http://localhost:8082/api/cart/add`, null, {
-          params: { userId: user.id, bookId: id },
+        await axiosInstance.post(`http://localhost:8082/api/cart/add`, null, {
+          params: { userEmail: user.email, bookId: id },
         });
         toast.success("Book added to cart!");
         setInCart(true);
@@ -247,12 +266,13 @@ const BookDetails = () => {
             )}
 
             {/* ❤️ Wishlist & Cart Buttons */}
-            {book.owner?.id !== user?.id && (
+            {book.owner?.email !== user?.email && (
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button
                   variant={inWishlist ? "destructive" : "outline"}
                   onClick={handleWishlistToggle}
                   className="flex items-center gap-2"
+                  disabled={loadingAction}
                 >
                   {inWishlist ? (
                     <>
