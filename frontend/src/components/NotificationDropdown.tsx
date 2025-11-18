@@ -40,24 +40,18 @@ const NotificationDropdown = ({ userId, onUnreadChange }: Props) => {
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setNotifications(prev =>
-        prev.map(n => ({ ...n, isRead: true, unread: false }))
-      );
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true, unread: false })));
     } catch (err) {
       console.error(err);
     }
   };
 
   const handleIncomingNotification = (notification: NotificationDTO) => {
-    (notification as any).isRead = false;
-    (notification as any).unread = true;
+    notification.isRead = false;
+    notification.unread = true;
     setNotifications(prev => [notification, ...prev]);
-
-    try {
-      window.dispatchEvent(
-        new CustomEvent("notification:new", { detail: notification })
-      );
-    } catch (e) {}
+    // Notify full-page listener
+    window.dispatchEvent(new CustomEvent("notification:new", { detail: notification }));
   };
 
   useEffect(() => {
@@ -74,41 +68,21 @@ const NotificationDropdown = ({ userId, onUnreadChange }: Props) => {
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   // Update parent about unread count
   useEffect(() => {
-    const count = notifications.filter(n => {
-      if (typeof (n as any).isRead === "boolean") return !(n as any).isRead;
-      return !!(n as any).unread;
-    }).length;
+    const count = notifications.filter(n => n.isRead === false || n.unread).length;
     onUnreadChange?.(count);
   }, [notifications, onUnreadChange]);
 
-  const unreadCount = notifications.filter(n => {
-    if (typeof (n as any).isRead === "boolean") return !(n as any).isRead;
-    return !!(n as any).unread;
-  }).length;
-
+  const unreadCount = notifications.filter(n => n.isRead === false || n.unread).length;
   const displayCount = unreadCount > 99 ? "99+" : String(unreadCount);
 
   return (
     <div className="relative" ref={dropdownRef}>
-      {/* Bell Button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setOpen(!open)}
-        className="relative"
-      >
-        <Bell
-          className={`h-5 w-5 ${
-            open || window.location.pathname === "/notifications"
-              ? "stroke-yellow-500 fill-yellow-500"
-              : "stroke-yellow-500"
-          }`}
-        />
+      <Button variant="ghost" size="icon" onClick={() => setOpen(!open)} className="relative">
+        <Bell className={`h-5 w-5 ${open ? "stroke-yellow-500 fill-yellow-500" : "stroke-yellow-500"}`} />
         {unreadCount > 0 && (
           <span className="absolute -top-1 -right-1 rounded-full bg-red-500 text-white text-xs min-w-[1rem] h-4 flex items-center justify-center px-1">
             {displayCount}
@@ -116,7 +90,6 @@ const NotificationDropdown = ({ userId, onUnreadChange }: Props) => {
         )}
       </Button>
 
-      {/* Dropdown */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -126,14 +99,9 @@ const NotificationDropdown = ({ userId, onUnreadChange }: Props) => {
             className="absolute right-0 mt-2 w-80 bg-white shadow-xl rounded-2xl z-50 max-h-96 overflow-y-auto border border-gray-200"
           >
             <div className="flex justify-between items-center p-3 border-b border-gray-200">
-              <span className="font-semibold text-slate-700 text-sm">
-                Notifications
-              </span>
+              <span className="font-semibold text-slate-700 text-sm">Notifications</span>
               {unreadCount > 0 && (
-                <button
-                  onClick={markAllRead}
-                  className="text-xs text-blue-600 hover:text-blue-800 transition"
-                >
+                <button onClick={markAllRead} className="text-xs text-blue-600 hover:text-blue-800 transition">
                   Mark all read
                 </button>
               )}
@@ -141,18 +109,10 @@ const NotificationDropdown = ({ userId, onUnreadChange }: Props) => {
 
             <div className="space-y-2 p-2">
               {notifications.length === 0 ? (
-                <p className="p-4 text-gray-500 text-sm text-center">
-                  No notifications
-                </p>
+                <p className="p-4 text-gray-500 text-sm text-center">No notifications</p>
               ) : (
                 notifications.slice(0, 6).map(n => (
-                  <motion.div
-                    key={n.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                  >
+                  <motion.div key={n.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
                     <NotificationCard notification={n} compact />
                   </motion.div>
                 ))
@@ -162,10 +122,7 @@ const NotificationDropdown = ({ userId, onUnreadChange }: Props) => {
             {notifications.length > 0 && (
               <div className="text-center mt-2 p-2 border-t border-gray-200">
                 <button
-                  onClick={() => {
-                    setOpen(false);
-                    navigate("/notifications");
-                  }}
+                  onClick={() => { setOpen(false); navigate("/notifications"); }}
                   className="text-sm text-blue-600 hover:text-blue-800 hover:underline transition"
                 >
                   View all

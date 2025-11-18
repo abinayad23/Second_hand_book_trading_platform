@@ -9,4 +9,6 @@ public interface ReviewService {
     List<Review> getReviewsByBook(Long bookId);
     List<Review> getReviewsByUser(Long userId);
     List<Review> getReviewsBySeller(Long sellerId);
+    public double getAverageRatingForSeller(Long Id);
+    public long getReviewCountForSeller(Long Id);
 }

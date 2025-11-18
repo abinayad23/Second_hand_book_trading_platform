@@ -8,12 +8,18 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class OrderDTO {
+
     private Long id;
     private Double totalPrice;
     private LocalDateTime orderTime;
     private OrderStatus status;
+
+    private Long buyerId;
+    private Long sellerId;
+
     private String buyerName;
     private String sellerName;
+
     private List<BookDTO> books;
 
     public OrderDTO() {}
@@ -23,14 +29,20 @@ public class OrderDTO {
         this.totalPrice = order.getTotalPrice();
         this.orderTime = order.getOrderTime();
         this.status = order.getStatus();
+
+        this.buyerId = order.getBuyer() != null ? order.getBuyer().getId() : null;
+        this.sellerId = order.getSeller() != null ? order.getSeller().getId() : null;
+
         this.buyerName = order.getBuyer() != null ? order.getBuyer().getName() : null;
         this.sellerName = order.getSeller() != null ? order.getSeller().getName() : null;
+
         this.books = order.getBooks() != null
                 ? order.getBooks().stream().map(BookDTO::new).collect(Collectors.toList())
                 : List.of();
     }
 
-    // --- Getters and Setters ---
+    // --- Getters & Setters ---
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -42,6 +54,12 @@ public class OrderDTO {
 
     public OrderStatus getStatus() { return status; }
     public void setStatus(OrderStatus status) { this.status = status; }
+
+    public Long getBuyerId() { return buyerId; }
+    public void setBuyerId(Long buyerId) { this.buyerId = buyerId; }
+
+    public Long getSellerId() { return sellerId; }
+    public void setSellerId(Long sellerId) { this.sellerId = sellerId; }
 
     public String getBuyerName() { return buyerName; }
     public void setBuyerName(String buyerName) { this.buyerName = buyerName; }

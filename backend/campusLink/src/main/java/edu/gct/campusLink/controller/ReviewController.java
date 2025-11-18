@@ -64,6 +64,18 @@ public class ReviewController {
         }
     }
 
+
+    @GetMapping("/seller/{id}/rating")
+    public ResponseEntity<Map<String, Object>> getSellerRating(@PathVariable Long id) {
+        double averageRating = reviewService.getAverageRatingForSeller(id);
+        long reviewCount = reviewService.getReviewCountForSeller(id);
+
+        // Returning as a Map for better structure
+        return ResponseEntity.ok(Map.of(
+                "averageRating", averageRating,
+                "reviewCount", reviewCount
+        ));
+    }
     @GetMapping("/seller/{sellerId}")
     public ResponseEntity<List<Review>> getReviewsBySeller(@PathVariable Long sellerId) {
         try {

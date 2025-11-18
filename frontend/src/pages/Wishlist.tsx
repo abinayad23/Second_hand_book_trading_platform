@@ -202,7 +202,7 @@ const Wishlist = () => {
                           : "#f59e0b",
                     }}
                   >
-                    {book.type || "Sale"}
+                    {book.type?.toUpperCase() || "Sale"}
                   </Badge>
                 </div>
 

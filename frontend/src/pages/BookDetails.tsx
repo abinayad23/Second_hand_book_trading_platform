@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios, { AxiosHeaders } from "axios";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,6 +21,17 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
 import { getUserFromToken } from "@/utils/jwtHelper";
+
+// 🔹 Axios instance with JWT interceptor
+const axiosInstance = axios.create();
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    if (!config.headers) config.headers = new AxiosHeaders();
+    (config.headers as AxiosHeaders).set("Authorization", `Bearer ${token}`);
+  }
+  return config;
+});
 
 interface Owner {
   id: number;
@@ -45,19 +56,6 @@ interface Book {
   owner?: Owner;
 }
 
-// 🔹 Axios instance with JWT interceptor
-const axiosInstance = axios.create();
-axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    if (!config.headers) {
-      config.headers = new AxiosHeaders();
-    }
-    (config.headers as AxiosHeaders).set("Authorization", `Bearer ${token}`);
-  }
-  return config;
-});
-
 const BookDetails = () => {
   const { id } = useParams();
   const [book, setBook] = useState<Book | null>(null);
@@ -70,9 +68,8 @@ const BookDetails = () => {
 
   useEffect(() => {
     if (id) fetchBookData();
-  }, [id, user?.email]);
+  }, [id, user?.id]);
 
-  // 🔹 Fetch Book + Wishlist + Cart Status
   const fetchBookData = async () => {
     try {
       setLoading(true);
@@ -82,17 +79,21 @@ const BookDetails = () => {
       );
       setBook(bookRes.data);
 
-      if (user?.email) {
+      if (user?.id) {
         // Wishlist check
-        const wishlistRes = await axiosInstance.get(`http://localhost:8082/api/wishlist`, {
-          params: { userEmail: user.email },
-        });
-        setInWishlist(wishlistRes.data.some((w: any) => w.book.id === Number(id)));
+        const wishlistRes = await axiosInstance.get(
+          "http://localhost:8082/api/wishlist",
+          { params: { userId: user.id } }
+        );
+        setInWishlist(
+          wishlistRes.data.some((w: any) => w.book.id === Number(id))
+        );
 
         // Cart check
-        const cartRes = await axiosInstance.get(`http://localhost:8082/api/cart`, {
-          params: { userEmail: user.email },
-        });
+        const cartRes = await axiosInstance.get(
+          "http://localhost:8082/api/cart",
+          { params: { userId: user.id } }
+        );
         setInCart(cartRes.data.some((c: any) => c.book.id === Number(id)));
       }
     } catch (err) {
@@ -102,25 +103,24 @@ const BookDetails = () => {
     }
   };
 
-  // ❤️ Toggle Wishlist
   const handleWishlistToggle = async () => {
-    if (!user) return toast.error("Please log in to manage wishlist.");
-    if (book?.owner?.email === user.email)
+    if (!user?.id) return toast.error("Please log in to manage wishlist.");
+    if (book?.owner?.id === user.id)
       return toast.error("You cannot add your own book to wishlist.");
 
     setLoadingAction(true);
     try {
       if (inWishlist) {
-        await axiosInstance.delete(`http://localhost:8082/api/wishlist/remove`, {
-          params: { userEmail: user.email, bookId: id },
+        await axiosInstance.delete("http://localhost:8082/api/wishlist/remove", {
+          params: { userId: user.id, bookId: book?.id },
         });
         toast.success("Removed from wishlist!");
         setInWishlist(false);
       } else {
         await axiosInstance.post(
-          `http://localhost:8082/api/wishlist/add`,
-          {},
-          { params: { userEmail: user.email, bookId: id } }
+          "http://localhost:8082/api/wishlist/add",
+          null,
+          { params: { userId: user.id, bookId: book?.id } }
         );
         toast.success("Added to wishlist!");
         setInWishlist(true);
@@ -133,35 +133,29 @@ const BookDetails = () => {
     }
   };
 
-  // 🛒 Toggle Cart (Add/Remove)
   const handleCartToggle = async () => {
-    if (!user) return toast.error("Please log in to manage cart.");
-    if (book?.owner?.email === user.email)
+    if (!user?.id) return toast.error("Please log in to manage cart.");
+    if (book?.owner?.id === user.id)
       return toast.error("You cannot buy your own book.");
 
     setLoadingAction(true);
     try {
       if (inCart) {
-        await axiosInstance.delete(`http://localhost:8082/api/cart/remove`, {
-          params: { userEmail: user.email, bookId: id },
+        await axiosInstance.delete("http://localhost:8082/api/cart/remove", {
+          params: { userId: user.id, bookId: book?.id },
         });
         toast.success("Removed from cart!");
         setInCart(false);
       } else {
-        await axiosInstance.post(`http://localhost:8082/api/cart/add`, null, {
-          params: { userEmail: user.email, bookId: id },
+        await axiosInstance.post("http://localhost:8082/api/cart/add", null, {
+          params: { userId: user.id, bookId: book?.id },
         });
         toast.success("Book added to cart!");
         setInCart(true);
       }
-    } catch (err: any) {
-      if (err.response?.data?.message?.includes("exists")) {
-        toast.error("Book already in cart!");
-        setInCart(true);
-      } else {
-        console.error(err);
-        toast.error("Error updating cart!");
-      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error updating cart!");
     } finally {
       setLoadingAction(false);
     }
@@ -184,9 +178,7 @@ const BookDetails = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
-
       <div className="container py-10 flex-1">
-        {/* 🔙 Back Button */}
         <Button variant="outline" className="mb-6" asChild>
           <Link to="/books">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -194,9 +186,7 @@ const BookDetails = () => {
           </Link>
         </Button>
 
-        {/* 📘 Book Details */}
         <Card className="p-6 md:p-10 flex flex-col md:flex-row gap-10 shadow-md">
-          {/* Left: Book Image */}
           <div className="flex-shrink-0 w-full md:w-1/3">
             <img
               src={
@@ -214,7 +204,6 @@ const BookDetails = () => {
             )}
           </div>
 
-          {/* Right: Book Info */}
           <CardContent className="flex-1 space-y-6">
             <h1 className="text-3xl font-bold">{book.title}</h1>
             <p className="text-muted-foreground">Author: {book.author || "Unknown"}</p>
@@ -244,7 +233,6 @@ const BookDetails = () => {
               </div>
             )}
 
-            {/* 👤 Seller Info */}
             {book.owner && (
               <div className="border-t pt-4">
                 <h3 className="font-semibold mb-3">Seller Information</h3>
@@ -265,8 +253,7 @@ const BookDetails = () => {
               </div>
             )}
 
-            {/* ❤️ Wishlist & Cart Buttons */}
-            {book.owner?.email !== user?.email && (
+            {book.owner?.id !== user?.id && (
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button
                   variant={inWishlist ? "destructive" : "outline"}
@@ -308,7 +295,6 @@ const BookDetails = () => {
           </CardContent>
         </Card>
       </div>
-
       <Footer />
     </div>
   );

@@ -39,8 +39,34 @@ public class User implements UserDetails {
     private Boolean isFirstYear;
     private LocalDate dateOfBirth;
 
+
+    public Boolean getFirstYear() {
+        return isFirstYear;
+    }
+
+    public Boolean getVerified() {
+        return isVerified;
+    }
+
+    public void setVerified(Boolean verified) {
+        isVerified = verified;
+    }
+
+    public Long getReviewCount() {
+        return reviewCount;
+    }
+
+    public void setReviewCount(Long reviewCount) {
+        this.reviewCount = reviewCount;
+    }
+
+    public void setFirstYear(Boolean firstYear) {
+        isFirstYear = firstYear;
+    }
+
     private Boolean isVerified = false;
     private Double rating = 0.0;
+    private Long reviewCount=0L;
     private String role = "STUDENT"; // default role
     private LocalDateTime createdAt = LocalDateTime.now();
 

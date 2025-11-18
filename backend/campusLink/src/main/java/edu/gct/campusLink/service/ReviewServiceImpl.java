@@ -34,13 +34,17 @@ public class ReviewServiceImpl implements ReviewService {
         review.setBook(book);
         review.setRating(rating);
         review.setComment(comment);
-        
-        // Set seller from book owner
+
         if (book.getOwner() != null) {
             review.setSeller(book.getOwner());
         }
 
-        return reviewRepository.save(review);
+        Review savedReview = reviewRepository.save(review);
+
+        // Update seller overall rating
+        updateSellerRating(review.getSeller());
+
+        return savedReview;
     }
 
     @Override
@@ -54,7 +58,22 @@ public class ReviewServiceImpl implements ReviewService {
         review.setRating(rating);
         review.setComment(comment);
 
-        return reviewRepository.save(review);
+        Review savedReview = reviewRepository.save(review);
+
+        // Update seller overall rating
+        updateSellerRating(seller);
+
+        return savedReview;
+    }
+
+    private void updateSellerRating(User seller) {
+        Double avgRating = reviewRepository.findAverageRatingForSeller(seller.getId());
+        Long reviewCount = reviewRepository.findReviewCountForSeller(seller.getId());
+
+        seller.setRating(avgRating != null ? avgRating : 0.0);
+        seller.setReviewCount(reviewCount != null ? reviewCount : 0L);
+
+        userRepository.save(seller);
     }
 
     @Override
@@ -70,5 +89,17 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     public List<Review> getReviewsBySeller(Long sellerId) {
         return reviewRepository.findBySellerId(sellerId);
+    }
+
+    @Override
+    public double getAverageRatingForSeller(Long sellerId) {
+        Double avg = reviewRepository.findAverageRatingForSeller(sellerId);
+        return avg != null ? avg : 0.0;
+    }
+
+    @Override
+    public long getReviewCountForSeller(Long sellerId) {
+        Long count = reviewRepository.findReviewCountForSeller(sellerId);
+        return count != null ? count : 0L;
     }
 }

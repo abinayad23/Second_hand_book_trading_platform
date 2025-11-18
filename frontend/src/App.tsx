@@ -19,6 +19,9 @@ import Orders from "./pages/Orders";
 import Notifications from "./pages/Notifications";
 import Cart from "./pages/Cart";
 import NotFound from "./pages/NotFound";
+import AskReview from "./pages/AskReview";
+import ReviewListPage from "./pages/ReviewListPage";
+
 
 const queryClient = new QueryClient();
 
@@ -46,6 +49,9 @@ const App = () => (
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/notifications" element={<Notifications />} />
+          <Route path="/ask-review" element={<AskReview />} />
+          <Route path="/review-list/:sellerId" element={<ReviewListPage />} />
+
 
           {/* Catch-all for unknown routes */}
           <Route path="*" element={<NotFound />} />
