@@ -9,13 +9,9 @@
         <module name="campusLink" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="Bookswap" target="21" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="Bookswap" options="-parameters" />
       <module name="campusLink" options="-parameters" />
     </option>
   </component>

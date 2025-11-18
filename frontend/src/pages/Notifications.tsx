@@ -1,118 +1,140 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { Bell, BookOpen, MessageCircle, Heart, CheckCheck } from "lucide-react";
+import { motion } from "framer-motion";
+import { getToken, getUserFromToken } from "@/utils/jwtHelper";
+import axios from "axios";
+import NotificationCard, { NotificationDTO } from "@/components/NotificationCard";
+import { Button } from "@/components/ui/button";
+import { CheckCheck } from "lucide-react";
+
+/**
+ * This page listens for 'notification:new' window events (dispatched by dropdown)
+ * so full-page updates in real-time when WS pushes a new notification.
+ */
 
 const Notifications = () => {
-  const notifications = [
-    { 
-      id: 1, 
-      type: "match", 
-      message: "Your wanted book 'Operating Systems' is now available!", 
-      time: "2 hours ago",
-      unread: true 
-    },
-    { 
-      id: 2, 
-      type: "message", 
-      message: "New message from John Doe about 'Data Structures'", 
-      time: "5 hours ago",
-      unread: true 
-    },
-    { 
-      id: 3, 
-      type: "wishlist", 
-      message: "'Digital Electronics' from your wishlist is now on sale", 
-      time: "1 day ago",
-      unread: false 
-    },
-    { 
-      id: 4, 
-      type: "exchange", 
-      message: "Alice Smith wants to exchange 'Linear Algebra' with you", 
-      time: "2 days ago",
-      unread: false 
-    },
-    { 
-      id: 5, 
-      type: "review", 
-      message: "Bob Johnson left a 5-star review on your book", 
-      time: "3 days ago",
-      unread: false 
-    },
-  ];
+  const [notifications, setNotifications] = useState<NotificationDTO[]>([]);
+  const [allRead, setAllRead] = useState(false);
+  const user = getUserFromToken();
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "match":
-        return <BookOpen className="h-5 w-5" />;
-      case "message":
-        return <MessageCircle className="h-5 w-5" />;
-      case "wishlist":
-        return <Heart className="h-5 w-5" />;
-      default:
-        return <Bell className="h-5 w-5" />;
+  const token = getToken();
+
+  const fetchNotifications = async () => {
+    if (!user) return;
+    try {
+      const res = await axios.get<NotificationDTO[]>(
+        `http://localhost:8082/api/notifications/${user.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNotifications(res.data || []);
+      setAllRead((res.data || []).every(n => isUnread(n) === false));
+    } catch (err) {
+      console.error(err);
     }
   };
 
+  const markAllAsRead = async () => {
+    if (!user) return;
+    try {
+      await axios.post(
+        `http://localhost:8082/api/notifications/${user.id}/mark-all-read`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true, unread: false })));
+      setAllRead(true);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Mark single notification as read (button in full-page card)
+  const markSingleAsRead = async (id: number) => {
+    try {
+      await axios.post(
+        `http://localhost:8082/api/notifications/mark-read/${id}`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setNotifications(prev => prev.map(n => (n.id === id ? { ...n, isRead: true, unread: false } : n)));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // helper: robust check for unread (supports both isRead and unread fields)
+  const isUnread = (n: NotificationDTO) => {
+    if (typeof (n as any).isRead === "boolean") return (n as any).isRead === false;
+    return (n as any).unread === true;
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+
+    // Listen for real-time notifications dispatched by the dropdown
+    const onNew = (e: any) => {
+      const incoming: NotificationDTO = e.detail;
+      if (!incoming) return;
+      // Normalize: ensure it's treated unread
+      (incoming as any).isRead = false;
+      (incoming as any).unread = true;
+      setNotifications(prev => [incoming, ...prev]);
+      setAllRead(false);
+    };
+    window.addEventListener("notification:new", onNew);
+
+    return () => {
+      window.removeEventListener("notification:new", onNew);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Update allRead state whenever notifications change
+    const anyUnread = notifications.some(isUnread);
+    setAllRead(!anyUnread);
+  }, [notifications]);
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <Navbar />
-      <main className="flex-1 pt-20 pb-12 bg-gradient-subtle">
-        <div className="container max-w-4xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">Notifications</h1>
-              <p className="text-muted-foreground">Stay updated with your book activities</p>
-            </div>
-            <Button variant="outline">
-              <CheckCheck className="h-4 w-4 mr-2" />
-              Mark all as read
-            </Button>
-          </div>
+      <main className="flex-1 pt-24 pb-20 container max-w-4xl mx-auto px-4">
+        <div className="flex items-center justify-between mb-10">
+          <h1 className="text-4xl font-extrabold tracking-tight text-indigo-700">Notifications</h1>
 
-          <div className="space-y-3">
-            {notifications.map((notification) => (
-              <Card 
-                key={notification.id} 
-                className={`shadow-elegant transition-all ${
-                  notification.unread ? "border-l-4 border-l-primary" : ""
-                }`}
-              >
-                <CardContent className="p-6">
-                  <div className="flex gap-4">
-                    <div className={`rounded-full p-3 flex-shrink-0 ${
-                      notification.unread ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                    }`}>
-                      {getIcon(notification.type)}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-4 mb-2">
-                        <p className={`font-medium ${notification.unread ? "text-foreground" : "text-muted-foreground"}`}>
-                          {notification.message}
-                        </p>
-                        {notification.unread && <Badge>New</Badge>}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{notification.time}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {notifications.length === 0 && (
-            <Card className="shadow-elegant">
-              <CardContent className="flex flex-col items-center justify-center py-16">
-                <Bell className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No notifications yet</h3>
-                <p className="text-muted-foreground">We'll notify you when something interesting happens</p>
-              </CardContent>
-            </Card>
-          )}
+          <Button
+            variant="outline"
+            onClick={markAllAsRead}
+            disabled={allRead}
+            className={`rounded-2xl shadow-md border-indigo-500 text-indigo-600 transition ${
+              allRead ? "opacity-40 cursor-not-allowed" : "hover:bg-indigo-50 hover:border-indigo-600"
+            }`}
+          >
+            <CheckCheck className="h-4 w-4 mr-2" /> Mark all as read
+          </Button>
         </div>
+
+        <motion.div layout className="space-y-4">
+          {notifications.length > 0 ? (
+            notifications.map(n => (
+              <motion.div
+                key={n.id}
+                layout
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                {/* pass onMarkRead so individual items can be marked from full page */}
+                <NotificationCard notification={n} onMarkRead={() => markSingleAsRead(n.id)} />
+              </motion.div>
+            ))
+          ) : (
+            <div className="text-center p-16 bg-white rounded-2xl shadow-lg border border-gray-200">
+              <p className="text-gray-500 text-lg font-medium">You're all caught up! No notifications.</p>
+            </div>
+          )}
+        </motion.div>
       </main>
       <Footer />
     </div>
