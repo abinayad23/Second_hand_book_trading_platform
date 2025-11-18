@@ -1,6 +1,6 @@
 package edu.gct.campusLink.controller;
 
-import edu.gct.campusLink.bean.Notification;
+import edu.gct.campusLink.dto.NotificationDTO;
 import edu.gct.campusLink.service.NotificationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -19,43 +19,39 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Notification>> getAllNotifications(@PathVariable Long userId) {
-        try {
-            List<Notification> notifications = notificationService.getAllNotifications(userId);
-            return ResponseEntity.ok(notifications);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(List.of());
-        }
+    @GetMapping("/{userId}")
+    public ResponseEntity<List<NotificationDTO>> getAll(@PathVariable Long userId) {
+        return ResponseEntity.ok(notificationService.getNotificationsForUser(userId));
     }
 
-    @GetMapping("/unread")
-    public ResponseEntity<List<Notification>> getUnread(@RequestParam Long userId) {
-        try {
-            List<Notification> notifications = notificationService.getUnreadNotifications(userId);
-            return ResponseEntity.ok(notifications);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(List.of());
-        }
+    @GetMapping("/{userId}/unread")
+    public ResponseEntity<List<NotificationDTO>> getUnread(@PathVariable Long userId) {
+        return ResponseEntity.ok(notificationService.getUnreadNotificationsForUser(userId));
     }
 
-    @PutMapping("/read/{id}")
-    public ResponseEntity<Map<String, String>> markAsRead(@PathVariable Long id) {
-        try {
-            notificationService.markAsRead(id);
-            return ResponseEntity.ok(Map.of("message", "Notification marked as read"));
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Failed to mark notification as read"));
-        }
+    @PostMapping("/mark-read/{id}")
+    public ResponseEntity<NotificationDTO> markRead(@PathVariable Long id) {
+        return ResponseEntity.ok(notificationService.markAsRead(id));
     }
 
-    @PutMapping("/read-all")
-    public ResponseEntity<Map<String, String>> markAllAsRead(@RequestParam Long userId) {
-        try {
-            notificationService.markAllAsRead(userId);
-            return ResponseEntity.ok(Map.of("message", "All notifications marked as read"));
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", "Failed to mark notifications as read"));
-        }
+    @PostMapping("/{userId}/mark-all-read")
+    public ResponseEntity<Map<String, String>> markAllRead(@PathVariable Long userId) {
+        notificationService.markAllAsRead(userId);
+        return ResponseEntity.ok(Map.of("status", "ok"));
     }
+    @PostMapping("/test-broadcast")
+    public ResponseEntity<String> testBroadcast(@RequestBody NotificationDTO dto) {
+
+        notificationService.broadcastNotification(dto); // call STOMP broadcast
+
+        return ResponseEntity.ok("Broadcasted");
+    }
+
+    @GetMapping("/test-notify")
+    public String testNotify() {
+
+        return notificationService.testNotify();
+    }
+
+
 }

@@ -11,60 +11,64 @@ public class Notification {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // brief title (eg "Order Updated")
+    private String title;
+
+    @Column(length = 1500)
     private String message;
+
     private boolean isRead = false;
+
+    private String type; // e.g. ORDER, WISHLIST, MESSAGE, ADMIN
+
+    // optional id reference (bookId, orderId, messageId)
+    private Long referenceId;
+
     private LocalDateTime timestamp = LocalDateTime.now();
 
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 
-    public Long getId() {
-        return id;
-    }
+    public Notification() {}
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    // Getters / Setters
 
-    public String getMessage() {
-        return message;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public void setMessage(String message) {
-        this.message = message;
-    }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 
-    public boolean isRead() {
-        return isRead;
-    }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 
-    public void setRead(boolean isRead) {
-        this.isRead = isRead;
-    }
+    public boolean isRead() { return isRead; }
+    public void setRead(boolean read) { isRead = read; }
 
-    public LocalDateTime getTimestamp() {
-        return timestamp;
-    }
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
 
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
-    }
+    public Long getReferenceId() { return referenceId; }
+    public void setReferenceId(Long referenceId) { this.referenceId = referenceId; }
 
-    public User getUser() {
-        return user;
-    }
+    public LocalDateTime getTimestamp() { return timestamp; }
+    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
 
-    public void setUser(User user) {
-        this.user = user;
-    }
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
 
     @Override
     public String toString() {
-        return "Notification [id=" + id + ", message=" + message + ", isRead=" + isRead + ", timestamp=" + timestamp
-                + ", user=" + user + "]";
+        return "Notification{" +
+                "id=" + id +
+                ", title='" + title + '\'' +
+                ", message='" + message + '\'' +
+                ", isRead=" + isRead +
+                ", type='" + type + '\'' +
+                ", referenceId=" + referenceId +
+                ", timestamp=" + timestamp +
+                ", user=" + (user != null ? user.getId() : null) +
+                '}';
     }
-
-    // Getters and Setters
-
 }

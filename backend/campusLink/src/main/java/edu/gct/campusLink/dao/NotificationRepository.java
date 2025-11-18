@@ -2,10 +2,9 @@ package edu.gct.campusLink.dao;
 
 import edu.gct.campusLink.bean.Notification;
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import java.util.List;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
-    List<Notification> findByUserId(Long userId);
-    List<Notification> findByUserIdAndIsReadFalse(Long userId);
+    List<Notification> findByUserIdOrderByTimestampDesc(Long userId);
+    List<Notification> findByUserIdAndIsReadFalseOrderByTimestampDesc(Long userId);
 }

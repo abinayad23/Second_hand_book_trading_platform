@@ -14,18 +14,24 @@ public class MessageServiceImpl implements MessageService {
 
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
-    public MessageServiceImpl(MessageRepository messageRepository, UserRepository userRepository) {
+    public MessageServiceImpl(MessageRepository messageRepository,
+                              UserRepository userRepository,
+                              NotificationService notificationService) {
         this.messageRepository = messageRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
     public Message sendMessage(Long senderId, Long receiverId, String content) {
+
         User sender = userRepository.findById(senderId)
-            .orElseThrow(() -> new RuntimeException("Sender not found"));
+                .orElseThrow(() -> new RuntimeException("Sender not found"));
+
         User receiver = userRepository.findById(receiverId)
-            .orElseThrow(() -> new RuntimeException("Receiver not found"));
+                .orElseThrow(() -> new RuntimeException("Receiver not found"));
 
         Message message = new Message();
         message.setSender(sender);
@@ -34,7 +40,18 @@ public class MessageServiceImpl implements MessageService {
         message.setTimestamp(java.time.LocalDateTime.now());
         message.setRead(false);
 
-        return messageRepository.save(message);
+        Message saved = messageRepository.save(message);
+
+        // ---- Trigger Notification ----
+        notificationService.createNotification(
+                receiver.getId(),
+                "New Message",
+                "New message from " + sender.getName(),
+                "MESSAGE",
+                saved.getId()
+        );
+
+        return saved;
     }
 
     @Override
@@ -56,7 +73,8 @@ public class MessageServiceImpl implements MessageService {
     @Transactional
     public void markAsRead(Long messageId) {
         Message message = messageRepository.findById(messageId)
-            .orElseThrow(() -> new RuntimeException("Message not found"));
+                .orElseThrow(() -> new RuntimeException("Message not found"));
+
         message.setRead(true);
         messageRepository.save(message);
     }
@@ -65,12 +83,13 @@ public class MessageServiceImpl implements MessageService {
     @Transactional
     public void markConversationAsRead(Long user1Id, Long user2Id) {
         List<Message> messages = messageRepository.findConversation(user1Id, user2Id);
+
         for (Message message : messages) {
-            if (message.getReceiver().getId().equals(user1Id) && !message.isRead()) {
+            if (message.getReceiver().getId().equals(user1Id)) {
                 message.setRead(true);
             }
         }
+
         messageRepository.saveAll(messages);
     }
 }
-
